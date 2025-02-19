@@ -7,7 +7,7 @@ export default function AboutScreen() {
   return (
     <View>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
+        <ThemedText type="title" style={{ marginTop: 5 }}>About</ThemedText>
       </ThemedView>
       <ThemedText> This is the about page </ThemedText>
     </View>

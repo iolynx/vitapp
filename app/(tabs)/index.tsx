@@ -1,11 +1,34 @@
-import { Text, View, StyleSheet, Button } from "react-native";
-import React, { useState } from 'react';
+import { Text, View, StyleSheet } from "react-native";
+import React, { useEffect, useState } from 'react';
+import { ThemedText } from "@/components/ThemedText";
+import FetchUserData from "@/utils/fetchUserData";
+import Button from "@/components/Button";
 
 export default function Index() {
+  const [userData, setUserData] = useState<any>(null);
+  const [fetching, setFetching] = useState(false);
+
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>cgpa: 4.55 (analysis: ur cgpa is dogshit lel)</Text>
-      <Text style={styles.text}>attendance: 23% (debarmaxxing) </Text>
+
+      {fetching ? (
+        <FetchUserData
+          onDataFetched={(data) => {
+            setUserData(data);
+            setFetching(false);
+          }}
+        />
+      ) : null}
+
+      <ThemedText style={styles.text}>The Student data goes here </ThemedText>
+
+      <Button theme="primary" label="Fetch User Data" onPress={() => setFetching(true)} />
+
+      {userData && (<ThemedText> UserData obtained is: </ThemedText>)}
+
+      <Text>fetching: {fetching} </Text>
+
     </View>
   );
 }
@@ -13,7 +36,6 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#25292e',
     alignItems: 'center',
     justifyContent: 'center',
   },
