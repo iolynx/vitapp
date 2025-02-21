@@ -8,7 +8,7 @@ const CaptchaDialog = ({ visible, image, onSubmit, onCancel }) => {
     <Modal transparent={true} visible={visible} animationType="slide">
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
         <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
-          <Image source={{ uri: image }} style={{ width: 200, height: 100 }} />
+          <Image source={{ uri: image }} style={{ width: "78%", height: undefined, aspectRatio: 4 }} />
           <TextInput placeholder="Enter captcha" onChangeText={setCaptchaText} value={captchaText} />
           <Button title="Submit" onPress={() => onSubmit(captchaText)} />
           <Button title="Cancel" onPress={onCancel} />
