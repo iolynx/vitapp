@@ -15,7 +15,10 @@ export default function Index() {
   const theme = useTheme();
 
   const handleLogin = () => {
-    setFetching(true);
+    setFetching(false);
+    setTimeout(() => {
+      setFetching(true);
+    }, 200);
   }
 
   return (

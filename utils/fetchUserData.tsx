@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import CaptchaHandler from "@/components/CaptchaHandler";
 import CaptchaDialog from "@/components/CaptchaDialog";
+import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
 
 // export default function fetchUserData({ onDataFetched }) {
 
@@ -16,9 +17,7 @@ interface FetchUserDataProps {
 
 const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDataFetched }) => {
 	const webViewRef = useRef<WebView | null>(null);
-	const [hasLoaded, setHasLoaded] = useState(false);
 	const [loading, setLoading] = useState(true);
-	const [response, setResponse] = useState(null);
 	const [status, setStatus] = useState('Loading...');
 	const [currentStep, setCurrentStep] = useState('INIT')
 	const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
@@ -27,7 +26,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const [token, setToken] = useState("");
 	const [url, setUrl] = useState('https://vtopcc.vit.ac.in/');
 	const [count, setCount] = useState(0);
-	const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+	const [semesters, setSemesters] = useState([]);
+	const [lastMessage, setLastMessage] = useState(null);
 
 	let isHandlingMessage = false;
 
@@ -58,7 +58,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 							setTimeout(() => {
 							  let responseText = document.body.innerText;
 							  window.ReactNativeWebView.postMessage(responseText);
-							}, 3000); // Wait 3s for content to load
+							}, 5000); // Wait 3s for content to load
 						})();
 					`
 		);
@@ -88,7 +88,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const openSignIn = `
 		(function() {
 			document.forms['stdForm'].submit();
-			window.ReactNativeWebView.postMessage(JSON.stringify({success: true}));
+			setTimeout(() => {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ success: true }));
+			}, 2000); 
 		})();
 	`
 	const openSignInOld = `
@@ -127,7 +129,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message }));
 		}
 	})();
-
 	`;
 
 	const getCaptchaTypeOld = `
@@ -220,26 +221,30 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		})();
 		`;
 
-	const handleMessage = async (event: any) => {
-		if (isHandlingMessage) return; // Ignore new messages if one is already processing
-		isHandlingMessage = true;
-
+	const handleMessage = (event: any) => {
 		try {
-			console.log("Processing message:");
-			processMessage(event)
+			const data = JSON.parse(event.nativeEvent.data);
+
+			if (JSON.stringify(data) === JSON.stringify(lastMessage) && currentStep !== 'HOME_PAGE') {
+				return;
+			}
+
+			setLastMessage(data); // Store the last message
+
+			// console.log('WebView Response:', data);
+
+			processMessage(event);
 		} catch (error) {
-			console.error("Error handling message:", error);
-		} finally {
-			isHandlingMessage = false; // Reset after processing
+			console.error('Error parsing WebView message:', error);
 		}
 	};
 
 	const processMessage = (event: any) => {
 		const data = JSON.parse(event.nativeEvent.data);
 		console.log('-------------------');
-		console.log('WebView Response: ', data);
-		console.log('Current Status: ', status);
 		console.log('Current Step: ', currentStep);
+		console.log('WebView Response: ', data);
+		// console.log('Current Status: ', status);
 
 		if (timeoutId) {
 			clearTimeout(timeoutId);
@@ -256,17 +261,15 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 							if (count > 10) {
 								console.log("Cannot Reach Server");
 								setLoading(false);
-								onDataFetched('the server is ass');
+								onDataFetched('Could not Reach the Server at this time.');
 								break;
 							}
-							setStatus('On Landing page, Navigating to Sign In...');
 							webViewRef.current.injectJavaScript(openSignIn);
 							setCurrentStep('NAVIGATE_TO_LOGIN');
 							setCount(count + 1);
 							break;
 
 						case 'LOGIN':
-							setStatus('On Login Page, getting captchas')
 							webViewRef.current.injectJavaScript(getCaptchaType);
 							setCurrentStep('HANDLE_CAPTCHA')
 							break;
@@ -275,16 +278,20 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 							//already signed in, proceed to next step
 							setStatus('Already Signed in...');
 							setCurrentStep('HOME_PAGE');
+							break;
 					}
 					break;
 
 				case 'NAVIGATE_TO_LOGIN':
 					console.log('Response from tryna go to login: ', data);
 					if (data.success === true) {
+						console.log('apparently success is certain.');
 						setUrl('https://vtopcc.vit.ac.in/vtop/login');
-						setCurrentStep('INIT')
+						webViewRef.current.injectJavaScript(getCaptchaType);
+						setCurrentStep('HANDLE_CAPTCHA')
 						break;
 					} else if (data.success === false) {
+						setUrl('https://vtopcc.vit.ac.in/');
 						webViewRef.current.injectJavaScript(openSignIn);
 						setCurrentStep('NAVIGATE_TO_LOGIN');
 						break;
@@ -302,7 +309,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					break;
 
 				case 'GET_CAPTCHA_TYPE':
-					setStatus('Getting Captcha Type & Displaying to User...');
 					console.log('getting captchas');
 					webViewRef.current.injectJavaScript(getCaptchaType)
 					setCurrentStep('HANDLE_CAPTCHA')
@@ -310,26 +316,26 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 				case 'HANDLE_CAPTCHA':
 					console.log('Response: ', data);
-					if (data.page_type) {
+					if (data.page_type === 'LOGIN') {
 						webViewRef.current.injectJavaScript(getCaptchaType);
 						break;
 					}
-					if (data.message) {
+					console.log('Captcha Type is: ', data.captcha_type);
+					if (data.captcha_type === 'GRECAPTCHA') {
 						webViewRef.current.injectJavaScript(greCaptcha);
+						console.log('Dealing with GreCaptcha..');
 						setCurrentStep('GRECAPTCHA');
 						break;
-					}
 
-					console.log('Captcha Type is: ', data.captcha_type);
-					if (data.captcha_type === "GRECAPTCHA") {
-						webViewRef.current.injectJavaScript(greCaptcha);
-						setStatus('Dealing with GreCaptcha..')
-						setCurrentStep('GRECAPTCHA')
-
-					} else {
+					} else if (data.captcha_type === 'DEFAULT') {
 						webViewRef.current.injectJavaScript(getCaptcha);
-						setStatus('Dealing with Default Captcha..')
-						setCurrentStep('DISPLAY_CAPTCHA')
+						console.log('Dealing with Default Captcha..');
+						setCurrentStep('DISPLAY_CAPTCHA');
+						break;
+					} else if (data.captcha) {
+						webViewRef.current.injectJavaScript(getCaptcha);
+						setCurrentStep('DISPLAY_CAPTCHA');
+						break;
 					}
 					break;
 
@@ -340,18 +346,17 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 						console.log(data.captcha);
 						setCaptchaImage(data.captcha);
 						setShowCaptchaDialog(true);
+					} else if (data.page_type === 'LOGIN') {
+						console.log("In Login Page");
+						webViewRef.current.injectJavaScript(getCaptchaType);
+						setCurrentStep('HANDLE_CAPTCHA');
 					}
 					break;
 
 				case 'GRECAPTCHA':
 					console.log('Data Received: ', data);
-					// if (data === undefined) {
-					// 	console.log('No Captcha Data received, restarting..');
-					// 	setCurrentStep('GET_CAPTCHA_TYPE');
-					// 	break;
-					// }
-					setToken(data);
-					console.log("Submitting Form with:");
+					setToken(data.siteKey);
+					console.log("Submitting Form with:", data.siteKey);
 					const submitForm = `
 					(function() {
 						// Clear previous intervals
@@ -368,8 +373,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 						// Fill in login fields
 						loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
 						loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
-						//loginForm.querySelector('[name="captchaStr"]').value = '${data.replace(/'/g, "\\'")}';
-						loginForm.querySelector('[name="gResponse"]').value = '${data.replace(/'/g, "\\'")}';
+						//loginForm.querySelector('[name="captchaStr"]').value = '${data.siteKey.replace(/'/g, "\\'")}';
+						loginForm.querySelector('[name="gResponse"]').value = '${data.siteKey.replace(/'/g, "\\'")}';
 
 						// Submit the Form
 						loginForm.submit();
@@ -378,7 +383,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 						setTimeout(() => {
 						  let responseText = document.body.innerText;
 						  window.ReactNativeWebView.postMessage(responseText);
-						}, 3000); // Wait 3s for content to load
+						}, 7000); // Wait 7s for content to load
 					})();
 					`;
 					console.log(submitForm);
@@ -390,11 +395,23 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 				case 'HOME_PAGE':
 					console.log('Submission Response: ', data);
-					console.log("cool")
-					setUrl('https:/vtopcc.vit.ac.in/vtop/content');
+					console.log('In Home Page..');
+					//setUrl('https://vtopcc.vit.ac.in/vtop/content')
 					webViewRef.current.injectJavaScript(fetchSemesters);
-					setCurrentStep('FETCH_SEMESTERS');
+					if (JSON.stringify(data) !== '{}' && data.semesters) {
+						console.log('Fetching Semesters...');
+						setCurrentStep('FETCH_SEMESTERS');
+					}
+					//setCurrentStep('FETCH_SEMESTERS');
 					break;
+
+				case 'FETCH_SEMESTERS':
+					// console.log('Semesters: ', data);
+					setSemesters(data.semesters);
+					console.log('Semesters are: ', semesters);
+					setLoading(false);
+					onDataFetched('asdfasdfa');
+				// now create a popup to select the current semester
 
 				case 'FINISHED':
 					setLoading(false);
