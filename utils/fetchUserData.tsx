@@ -17,6 +17,7 @@ interface FetchUserDataProps {
 
 const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDataFetched }) => {
 	const webViewRef = useRef<WebView | null>(null);
+	const detectPageInjected = useRef(false);
 	const [loading, setLoading] = useState(true);
 	const [status, setStatus] = useState('Loading...');
 	const [currentStep, setCurrentStep] = useState('INIT')
@@ -28,6 +29,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const [count, setCount] = useState(0);
 	const [semesters, setSemesters] = useState([]);
 	const [lastMessage, setLastMessage] = useState(null);
+	const [gettingCaptcha, setGettingCaptcha] = useState(false);
 
 	let isHandlingMessage = false;
 
@@ -36,38 +38,46 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		console.log("Solved captcha:", text);
 		setShowCaptchaDialog(false);
 		webViewRef.current?.injectJavaScript(`
-						(function() {
-							// Clear previous intervals
-							if (typeof captchaInterval !== 'undefined') clearInterval(captchaInterval);
-							if (typeof executeInterval !== 'undefined') clearInterval(executeInterval);
+		(function() {
+			// Clear previous intervals
+			if (typeof captchaInterval !== 'undefined') clearInterval(captchaInterval);
+			if (typeof executeInterval !== 'undefined') clearInterval(executeInterval);
 
-							const loginForm = document.querySelector('#vtopLoginForm');
-							if (!loginForm) {
-								window.ReactNativeWebView.postMessage(JSON.stringify({ error: 'Login form not found' }));
-								return;
-							}
+			const loginForm = document.querySelector('#vtopLoginForm');
+			if (!loginForm) {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ error: 'Login form not found' }));
+				return;
+			}
 
-							// Fill login form fields
-							loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
-							loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
-							loginForm.querySelector('[name="captchaStr"]').value = '${text.replace(/'/g, "\\'")}';
-							//loginForm.querySelector('[name="gResponse"]').value = '${text.replace(/'/g, "\\'")}';
+			// Fill login form fields
+			loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
+			loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
+			loginForm.querySelector('[name="captchaStr"]').value = '${text.replace(/'/g, "\\'")}';
 
-							// Submit the Form
-							loginForm.submit(); 
-							setTimeout(() => {
-							  let responseText = document.body.innerText;
-							  window.ReactNativeWebView.postMessage(responseText);
-							}, 5000); // Wait 3s for content to load
-						})();
-					`
-		);
+			// Submit the form
+			loginForm.submit(); 
+
+			setTimeout(() => {
+				// Correctly define response object
+				let responseText = {
+					status: "SUBMITTED_FORM",
+					pageText: document.body.innerText || "No content detected"
+				};
+
+				window.ReactNativeWebView.postMessage(JSON.stringify(responseText));
+			}, 3000); // Wait 5s for content to load
+		})();
+
+		`);
 		console.log('Form Submitted');
-		setCurrentStep('HOME_PAGE');
+		setTimeout(() => {
+			setCurrentStep('fetchSemesters');
+		}, 5000);
 	};
 
 
-	const detectPage = `
+	const scripts = {
+		detectPage: `
         (function() {
             const response = { page_type: 'LANDING' };
 			console.log("this is from the injected script")
@@ -79,23 +89,25 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
             if (document.querySelector('form[id="vtopLoginForm"]')) {
                 response.page_type = 'LOGIN';
             }
-            
-            // Send result back to React Native
+			
+			response.status = 'DETECTED_PAGE'
+
             window.ReactNativeWebView.postMessage(JSON.stringify(response));
         })();
-    `;
+    `,
 
-	const openSignIn = `
+		openSignInNew: `
 		(function() {
 			document.forms['stdForm'].submit();
-			setTimeout(() => {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ success: true }));
-			}, 2000); 
-		})();
-	`
-	const openSignInOld = `
-		(function() {
 			const response = { success: false };
+			setTimeout(() => {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ success: true, status: 'OPENED_SIGNIN' }));
+			}, 4000); 
+		})();
+	`,
+		openSignIn: `
+		(function() {
+			const response = { success: false, status: 'OPENED_SIGNIN' };
 			const formData = new URLSearchParams(new FormData(document.getElementById("stdForm")));
 
 			fetch("https://vtopcc.vit.ac.in/vtop/prelogin/setup", {
@@ -112,64 +124,90 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				window.ReactNativeWebView.postMessage(JSON.stringify(response));
 			});
 		})();
-    `;
+    `,
+		getCaptchaType: `
+		(function() {
+			try {
+				const response = { captcha_type: 'DEFAULT' };
 
-	const getCaptchaType = `
-	(function() {
-		try {
-			const response = { captcha_type: 'DEFAULT' };
+				// Check for presence of the element without jQuery
+				if (document.querySelector('input#gResponse')) {
+					response.captcha_type = 'GRECAPTCHA';
+				}
+				response.status = 'GOT_CAPTCHA_TYPE';
 
-			// Check for presence of the element without jQuery
-			if (document.querySelector('input#gResponse')) {
-				response.captcha_type = 'GRECAPTCHA';
+				window.ReactNativeWebView.postMessage(JSON.stringify(response));
+			} catch (error) {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message, status: 'GOT_CAPTCHA_TYPE' }));
 			}
+		})();
+		`,
 
-			window.ReactNativeWebView.postMessage(JSON.stringify(response));
-		} catch (error) {
-			window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message }));
-		}
-	})();
-	`;
-
-	const getCaptchaTypeOld = `
+		getCaptchaTypeOld: `
 		(function() {
 				const response = {
-						captcha_type: 'DEFAULT'
+						captcha_type: 'DEFAULT',
 				};
 
 				if ($('input[id="gResponse"]').length === 1) {
 						response.captcha_type = 'GRECAPTCHA';
 				}
 
-			window.ReactNativeWebView.postMessage(JSON.stringify(response));
+			setTimeout(() => {
+				window.ReactNativeWebView.postMessage(JSON.stringify(response));
+			}, 1000);
 		})();
-	`;
+		`,
 
-	const getCaptcha = `
-		(function() {
-			try {
-				const captchaImg = document.querySelector('#captchaBlock img');
-				const captchaSrc = captchaImg ? captchaImg.src : null;
-
+		getOuterHTML: `
+		(function waitForPage() {
+			if (document.readyState === 'complete') {
 				window.ReactNativeWebView.postMessage(JSON.stringify({
-					captcha: captchaSrc
+					html: document.documentElement.outerHTML,
+					status: 'GOT_CAPTCHA'
 				}));
-			} catch (error) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({
-					error: error.message
-				}));
+			} else {
+				setTimeout(waitForPage, 1000); 
 			}
 		})();
-	`;
+		`,
 
-	const greCaptcha = `
+		getOuterHTML_: `
+		(function waitForLoad() {
+			if (document.readyState === 'complete') {
+				window.ReactNativeWebView.postMessage(JSON.stringify({
+					html: document.documentElement.outerHTML,
+					status: 'GOT_CAPTCHA'
+				}));
+			} else {
+				setTimeout(waitForLoad, 500); 
+			}
+		})();
+		`,
+
+		getCaptcha: `
+		(function waitForCaptcha() {
+			const captchaImg = document.querySelector('#captchaBlock img');
+
+			if (captchaImg) {
+				window.ReactNativeWebView.postMessage(JSON.stringify({
+					captcha: captchaImg.src,
+					status: 'GOT_CAPTCHA'
+				}));
+			} else {
+				setTimeout(waitForCaptcha, 500); // Retry every 500ms until captcha is found
+			}
+		})();
+		`,
+
+		greCaptcha: `
 		(function() {
 			const siteKey = document.querySelector('.g-recaptcha')?.getAttribute('data-sitekey');
-			window.ReactNativeWebView.postMessage(JSON.stringify({ siteKey }));
+			window.ReactNativeWebView.postMessage(JSON.stringify({ siteKey: siteKey, status: 'GOT_SITEKEY' }));
 		})();
-	`;
+	`,
 
-	const fetchSemesters = `
+		fetchSemesters: `
 		(async function () {
 			const authorizedID = document.getElementById('authorizedIDX')?.value;
 			const csrfToken = document.querySelector('input[name="_csrf"]')?.value;
@@ -182,7 +220,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				nocache: timestamp
 			});
 
-			let response = {};
+			let response = {status: 'FETCHED_SEMESTERS'};
 
 			try {
 				const res = await fetch("academics/common/StudentTimeTableChn", {
@@ -219,7 +257,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			window.ReactNativeWebView.postMessage(JSON.stringify(response));
 		})();
-		`;
+		`
+	}
+
 
 	const handleMessage = (event: any) => {
 		try {
@@ -241,6 +281,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 	const processMessage = (event: any) => {
 		const data = JSON.parse(event.nativeEvent.data);
+
+		// logging progress to debug
 		console.log('-------------------');
 		console.log('Current Step: ', currentStep);
 		console.log('WebView Response: ', data);
@@ -251,175 +293,119 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			setTimeoutId(null);
 		}
 
-		if (webViewRef.current) {
-			switch (currentStep) {
-				case 'INIT':
-					webViewRef.current.injectJavaScript(detectPage);
-					switch (data.page_type) {
-						case 'LANDING':
-							console.log('Count: ', count);
-							if (count > 10) {
-								console.log("Cannot Reach Server");
-								setLoading(false);
-								onDataFetched('Could not Reach the Server at this time.');
-								break;
-							}
-							webViewRef.current.injectJavaScript(openSignIn);
-							setCurrentStep('NAVIGATE_TO_LOGIN');
-							setCount(count + 1);
+		if (!webViewRef.current) {
+			return;
+		}
+
+		switch (data.status) {
+			case 'DETECTED_PAGE':
+				switch (data.page_type) {
+					case 'LANDING':
+						console.log('On Landing page.');
+						console.log('Landing Page count: ', count);
+						if (count > 10) {
+							console.log("Cannot Reach Server");
+							setLoading(false);
+							onDataFetched('Could not Reach the Server at this time.');
 							break;
-
-						case 'LOGIN':
-							webViewRef.current.injectJavaScript(getCaptchaType);
-							setCurrentStep('HANDLE_CAPTCHA')
-							break;
-
-						case 'HOME':
-							//already signed in, proceed to next step
-							setStatus('Already Signed in...');
-							setCurrentStep('HOME_PAGE');
-							break;
-					}
-					break;
-
-				case 'NAVIGATE_TO_LOGIN':
-					console.log('Response from tryna go to login: ', data);
-					if (data.success === true) {
-						console.log('apparently success is certain.');
-						setUrl('https://vtopcc.vit.ac.in/vtop/login');
-						webViewRef.current.injectJavaScript(getCaptchaType);
-						setCurrentStep('HANDLE_CAPTCHA')
-						break;
-					} else if (data.success === false) {
-						setUrl('https://vtopcc.vit.ac.in/');
-						webViewRef.current.injectJavaScript(openSignIn);
-						setCurrentStep('NAVIGATE_TO_LOGIN');
-						break;
-					}
-					if (data.page_type === "LOGIN") {
-						console.log("In Login Page");
-						webViewRef.current.injectJavaScript(getCaptchaType);
-						setCurrentStep('HANDLE_CAPTCHA');
-					} else {
-						setUrl('https://vtopcc.vit.ac.in/');
-						console.log('Error Navigating to Log In Page');
-						setCurrentStep('INIT');
-						webViewRef.current.injectJavaScript(openSignIn);
-					}
-					break;
-
-				case 'GET_CAPTCHA_TYPE':
-					console.log('getting captchas');
-					webViewRef.current.injectJavaScript(getCaptchaType)
-					setCurrentStep('HANDLE_CAPTCHA')
-					break;
-
-				case 'HANDLE_CAPTCHA':
-					console.log('Response: ', data);
-					if (data.page_type === 'LOGIN') {
-						webViewRef.current.injectJavaScript(getCaptchaType);
-						break;
-					}
-					console.log('Captcha Type is: ', data.captcha_type);
-					if (data.captcha_type === 'GRECAPTCHA') {
-						webViewRef.current.injectJavaScript(greCaptcha);
-						console.log('Dealing with GreCaptcha..');
-						setCurrentStep('GRECAPTCHA');
-						break;
-
-					} else if (data.captcha_type === 'DEFAULT') {
-						webViewRef.current.injectJavaScript(getCaptcha);
-						console.log('Dealing with Default Captcha..');
-						setCurrentStep('DISPLAY_CAPTCHA');
-						break;
-					} else if (data.captcha) {
-						webViewRef.current.injectJavaScript(getCaptcha);
-						setCurrentStep('DISPLAY_CAPTCHA');
-						break;
-					}
-					break;
-
-				// to display the default captcha
-				case 'DISPLAY_CAPTCHA':
-					// console.log(data);
-					if (data.captcha) {
-						console.log(data.captcha);
-						setCaptchaImage(data.captcha);
-						setShowCaptchaDialog(true);
-					} else if (data.page_type === 'LOGIN') {
-						console.log("In Login Page");
-						webViewRef.current.injectJavaScript(getCaptchaType);
-						setCurrentStep('HANDLE_CAPTCHA');
-					}
-					break;
-
-				case 'GRECAPTCHA':
-					console.log('Data Received: ', data);
-					setToken(data.siteKey);
-					console.log("Submitting Form with:", data.siteKey);
-					const submitForm = `
-					(function() {
-						// Clear previous intervals
-						if (typeof captchaInterval !== 'undefined') clearInterval(captchaInterval);
-						if (typeof executeInterval !== 'undefined') clearInterval(executeInterval);
-
-						// Select the form
-						const loginForm = document.querySelector('#vtopLoginForm');
-						if (!loginForm) {
-							window.ReactNativeWebView.postMessage(JSON.stringify({ error: 'Login form not found' }));
-							return;
 						}
 
-						// Fill in login fields
-						loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
-						loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
-						//loginForm.querySelector('[name="captchaStr"]').value = '${data.siteKey.replace(/'/g, "\\'")}';
-						loginForm.querySelector('[name="gResponse"]').value = '${data.siteKey.replace(/'/g, "\\'")}';
+						setCurrentStep('openSignIn');
+						setCount(count + 1);
+						break;
 
-						// Submit the Form
-						loginForm.submit();
+					case 'LOGIN':
+						// in login page
+						console.log('In Login Page');
+						setCurrentStep('getCaptchaType');
+						break;
 
-						// Submit the Form
-						setTimeout(() => {
-						  let responseText = document.body.innerText;
-						  window.ReactNativeWebView.postMessage(responseText);
-						}, 7000); // Wait 7s for content to load
-					})();
-					`;
-					console.log(submitForm);
-					webViewRef.current.injectJavaScript(submitForm);
-					console.log('Submitted Form');
-					setCurrentStep('HOME_PAGE')
-					console.log("going to home page now");
-					break;
+					case 'HOME':
+						//already signed in, proceed to next step
+						//setCurrentStep('fetchSemesters');
+						console.log('Already In Home Page');
+						break;
+				}
+				break;
 
-				case 'HOME_PAGE':
-					console.log('Submission Response: ', data);
-					console.log('In Home Page..');
-					//setUrl('https://vtopcc.vit.ac.in/vtop/content')
-					webViewRef.current.injectJavaScript(fetchSemesters);
-					if (JSON.stringify(data) !== '{}' && data.semesters) {
-						console.log('Fetching Semesters...');
-						setCurrentStep('FETCH_SEMESTERS');
-					}
-					//setCurrentStep('FETCH_SEMESTERS');
-					break;
+			case 'OPENED_SIGNIN':
+				if (data.success === true) {
+					console.log('Auth Success. Proceeding to Login Page...');
+					setUrl('https://vtopcc.vit.ac.in/vtop/login');
+					setCurrentStep('getCaptchaType');
+				} else if (data.success === false) {
+					console.log('Auth Failure. Retrying...');
+					setUrl('https://vtopcc.vit.ac.in/');
+					setCurrentStep('openSignIn');
+				} else {
+					console.log('weird response: \n', data);
+				}
+				break;
 
-				case 'FETCH_SEMESTERS':
-					// console.log('Semesters: ', data);
-					setSemesters(data.semesters);
-					console.log('Semesters are: ', semesters);
-					setLoading(false);
-					onDataFetched('asdfasdfa');
-				// now create a popup to select the current semester
+			case 'GOT_CAPTCHA_TYPE':
+				console.log('Got Captcha Type...');
+				if (data.captcha_type == 'DEFAULT') {
+					console.log('Captcha Type: Default Captcha');
+					setTimeout(() => {
+						setCurrentStep('getCaptcha');
+					}, 700);
+					console.log('bye');
+					setGettingCaptcha(true);
+				} else if (data.captcha_type == 'GRECAPTCHA') {
+					console.log('Captcha Type: greCaptcha');
+					// todo: later
+					setCurrentStep('greCaptcha');
+				}
+				break;
 
-				case 'FINISHED':
-					setLoading(false);
-					onDataFetched(data);
-					break;
-			}
+			case 'GOT_CAPTCHA':
+				console.log('Received Captcha Base 64. Displaying...');
+				if (data.captcha) {
+					setGettingCaptcha(false);
+					setCaptchaImage(data.captcha);
+					setShowCaptchaDialog(true);
+				} else {
+					console.log('weird response: \n', data)
+				}
+				break;
+
+			case 'GOT_SITEKEY':
+				// todo: later
+				// do some stuff with the sitekey 
+				break;
+
+			case 'SUBMITTED_FORM':
+				console.log('In Home Page..');
+
+				setUrl('https://vtopcc.vit.ac.in/vtop/content');
+				console.log('Fetching Semesters...');
+				setCurrentStep('fetchSemesters');
+				break;
+
+			case 'FETCHED_SEMESTERS':
+				setSemesters(data.semesters);
+				console.log('Semesters are: ', semesters);
+				setLoading(false);
+				onDataFetched('fetched semesters, now you must show the popup');
+			// now create a popup to select the current semester
+
+			case 'FINISHED':
+				setLoading(false);
+				onDataFetched(data);
+				break;
 		}
 	}
+
+	const injectScript = (step: string) => {
+		const script = scripts[step];
+		if (script && webViewRef.current) {
+			webViewRef.current.injectJavaScript(script);
+		}
+	};
+
+	useEffect(() => {
+		injectScript(currentStep);
+	}, [currentStep])
 
 	return (
 		<View style={styles.container}>
@@ -429,7 +415,14 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					source={{ uri: url }}
 					onMessage={handleMessage}
 					javaScriptEnabled={true}
-					injectedJavaScriptBeforeContentLoaded={detectPage}
+					//injectedJavaScript={scripts['detectPage']}
+					onLoad={() => {
+						if (!detectPageInjected.current) {
+							detectPageInjected.current = true;
+							console.log("loaded.");
+							injectScript("detectPage"); // Inject only on first load
+						}
+					}}
 					domStorageEnabled={true}
 					// onNavigationStateChange={(navState) => {
 					// 	if (!hasLoaded) {
