@@ -2,11 +2,8 @@ import { WebView } from "react-native-webview";
 import React, { useRef, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
-import CaptchaHandler from "@/components/CaptchaHandler";
 import CaptchaDialog from "@/components/CaptchaDialog";
-import { get } from "react-native/Libraries/TurboModule/TurboModuleRegistry";
-
-// export default function fetchUserData({ onDataFetched }) {
+import SelectSemesterModal from "@/components/SelectSemesterModal";
 
 
 interface FetchUserDataProps {
@@ -19,20 +16,35 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const webViewRef = useRef<WebView | null>(null);
 	const detectPageInjected = useRef(false);
 	const [loading, setLoading] = useState(true);
-	const [status, setStatus] = useState('Loading...');
 	const [currentStep, setCurrentStep] = useState('INIT')
 	const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
 	const [captchaImage, setCaptchaImage] = useState('');
 	const [showCaptchaDialog, setShowCaptchaDialog] = useState(false);
-	const [token, setToken] = useState("");
 	const [url, setUrl] = useState('https://vtopcc.vit.ac.in/');
 	const [count, setCount] = useState(0);
 	const [semesters, setSemesters] = useState([]);
 	const [lastMessage, setLastMessage] = useState(null);
 	const [gettingCaptcha, setGettingCaptcha] = useState(false);
+	const [webViewVisibility, setWebViewVisibility] = useState(1);
+	const [semesterModalVisible, setSemesterModalVisible] = useState(false);
+	const [selectedSemester, setSelectedSemester] = useState('');
 
-	let isHandlingMessage = false;
+	async function saveInfo(key: string, value: string) {
+		await SecureStore.setItemAsync(key, value);
+	}
 
+	const handleSemesterSelect = (selectedSem: string) => {
+		if (selectedSem == '') {
+			console.log('Error: No Semester Selected.');
+			setLoading(false);
+			onDataFetched('No Semester Selected');
+			return;
+		}
+
+		console.log('Selected: ', selectedSem);
+		setSelectedSemester(selectedSem);
+		setCurrentStep('getName');
+	}
 
 	const handleCaptchaSubmit = (text: string) => {
 		console.log("Solved captcha:", text);
@@ -58,7 +70,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			loginForm.submit(); 
 
 			setTimeout(() => {
-				// Correctly define response object
 				let responseText = {
 					status: "SUBMITTED_FORM",
 					pageText: document.body.innerText || "No content detected"
@@ -67,7 +78,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				window.ReactNativeWebView.postMessage(JSON.stringify(responseText));
 			}, 3000); // Wait 5s for content to load
 		})();
-
 		`);
 		console.log('Form Submitted');
 		setTimeout(() => {
@@ -77,6 +87,34 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 
 	const scripts = {
+		submitForm: `
+		(function() {
+			// Clear previous intervals
+			if (typeof captchaInterval !== 'undefined') clearInterval(captchaInterval);
+			if (typeof executeInterval !== 'undefined') clearInterval(executeInterval);
+
+			const loginForm = document.querySelector('#vtopLoginForm');
+			if (!loginForm) {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ error: 'Login form not found' }));
+				return;
+			}
+
+			// Fill login form fields
+			loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
+			loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
+
+			grecaptcha.execute();
+
+			setTimeout(() => {
+				let responseText = {
+					status: "SUBMITTED_FORM",
+					pageText: document.body.innerText || "No content detected"
+				};
+
+				window.ReactNativeWebView.postMessage(JSON.stringify(responseText));
+			}, 5000); // Wait 5s for content to load
+		})();
+		`,
 		detectPage: `
         (function() {
             const response = { page_type: 'LANDING' };
@@ -257,7 +295,80 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			window.ReactNativeWebView.postMessage(JSON.stringify(response));
 		})();
-		`
+		`,
+		getName: `
+		(function() {
+			var data = 'verifyMenu=true&authorizedID=' + $('#authorizedIDX').val() + '&_csrf=' + $('input[name="_csrf"]').val() + '&nocache=@' + (new Date().getTime());
+			var response = { status: 'GOT_NAME' };
+			$.ajax({
+				type: 'POST',
+				url: 'studentsRecord/StudentProfileAllView',
+				data: data,
+				async: false,
+				success: function(res) {
+					if (res.toLowerCase().includes('personal information')) {
+						var doc = new DOMParser().parseFromString(res, 'text/html');
+						var cells = doc.getElementsByTagName('td');
+						for (var i = 0; i < cells.length; ++i) {
+							var key = cells[i].innerText.toLowerCase();
+							if (key.includes('student') && key.includes('name')) {
+								response.name = cells[++i].innerHTML;
+								break;
+							}
+						}
+					}
+				}
+			});
+			window.ReactNativeWebView.postMessage(JSON.stringify(response));
+		})();
+		`,
+		getCreditsAndCGPA: `
+		(function() {
+			var data = 'verifyMenu=true&authorizedID=' + $('#authorizedIDX').val() + 
+					   '&_csrf=' + $('input[name="_csrf"]').val() + 
+					   '&nocache=' + (new Date().getTime());
+
+			var response = {};
+
+			$.ajax({
+				type: 'POST',
+				url: 'examinations/examGradeView/StudentGradeHistory',
+				data: data,
+				async: false,
+				success: function(res) {
+					var doc = new DOMParser().parseFromString(res, 'text/html');
+					var tables = doc.getElementsByTagName('table');
+
+					for (var i = tables.length - 1; i >= 0; --i) {
+						var headings = tables[i].getElementsByTagName('tr')[0].getElementsByTagName('td');
+
+						if (headings[0].innerText.toLowerCase().includes('credits')) {
+							var creditsIndex, cgpaIndex;
+
+							for (var j = 0; j < headings.length; ++j) {
+								var heading = headings[j].innerText.toLowerCase();
+								if (heading.includes('earned')) {
+									creditsIndex = j + headings.length;
+								} else if (heading.includes('cgpa')) {
+									cgpaIndex = j + headings.length;
+								}
+							}
+
+							var cells = tables[i].getElementsByTagName('td');
+							response.cgpa = parseFloat(cells[cgpaIndex].innerText) || 0;
+							response.total_credits = parseFloat(cells[creditsIndex].innerText) || 0;
+							break;
+						}
+					}
+
+					// Send the data back to React Native
+					window.ReactNativeWebView.postMessage(JSON.stringify(response));
+				}
+			});
+		})();
+
+		` ,
+
 	}
 
 
@@ -332,7 +443,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				if (data.success === true) {
 					console.log('Auth Success. Proceeding to Login Page...');
 					setUrl('https://vtopcc.vit.ac.in/vtop/login');
-					setCurrentStep('getCaptchaType');
+					setTimeout(() => {
+						setCurrentStep('getCaptchaType');
+					}, 300);
 				} else if (data.success === false) {
 					console.log('Auth Failure. Retrying...');
 					setUrl('https://vtopcc.vit.ac.in/');
@@ -346,6 +459,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				console.log('Got Captcha Type...');
 				if (data.captcha_type == 'DEFAULT') {
 					console.log('Captcha Type: Default Captcha');
+
+					//  wait for a few seconds for the page to load before
+					//  getting the captcha challenge
 					setTimeout(() => {
 						setCurrentStep('getCaptcha');
 					}, 700);
@@ -370,8 +486,11 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				break;
 
 			case 'GOT_SITEKEY':
-				// todo: later
-				// do some stuff with the sitekey 
+				webViewRef.current.injectJavaScript(scripts['submitForm']);
+				console.log('Form Submitted');
+
+				// setShowReCaptchaDialog(true);
+				// console.log(showReCaptchaDialog);
 				break;
 
 			case 'SUBMITTED_FORM':
@@ -382,12 +501,32 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				setCurrentStep('fetchSemesters');
 				break;
 
+			case 'RECAPTCHA_SHOWN':
+				console.log(data);
+
 			case 'FETCHED_SEMESTERS':
 				setSemesters(data.semesters);
 				console.log('Semesters are: ', semesters);
-				setLoading(false);
-				onDataFetched('fetched semesters, now you must show the popup');
-			// now create a popup to select the current semester
+				setSemesterModalVisible(true);
+				// this transfers control to a 
+				// semester modal that upon submisison
+				// returns control to handleSemesterSelect()
+				// from where the next step is called;
+				break;
+
+			case 'GOT_NAME':
+				console.log('Hello, ', data.name);
+				saveInfo('name', data.name);
+				setCurrentStep('getCreditsAndCGPA');
+				break;
+
+			case 'GOT_CREDITS_CGPA':
+				console.log('Fetched Credits & CGPA');
+				console.log(data);
+				saveInfo('credits', data.total_credits);
+				saveInfo('cgpa', data.cgpa);
+
+
 
 			case 'FINISHED':
 				setLoading(false);
@@ -415,22 +554,16 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					source={{ uri: url }}
 					onMessage={handleMessage}
 					javaScriptEnabled={true}
-					//injectedJavaScript={scripts['detectPage']}
 					onLoad={() => {
 						if (!detectPageInjected.current) {
 							detectPageInjected.current = true;
 							console.log("loaded.");
-							injectScript("detectPage"); // Inject only on first load
+							injectScript("detectPage"); // inject only on first load
 						}
 					}}
 					domStorageEnabled={true}
-					// onNavigationStateChange={(navState) => {
-					// 	if (!hasLoaded) {
-					// 		setHasLoaded(true);
-					// 		webViewRef.current?.injectJavaScript(detectPage);
-					// 	}
-					// }}
-					style={{ flex: 1 }}
+					style={{ flex: webViewVisibility }}
+					userAgent=""
 				/>
 			)}
 			<CaptchaDialog
@@ -438,6 +571,12 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				image={captchaImage}
 				onSubmit={handleCaptchaSubmit}
 				onCancel={() => setShowCaptchaDialog(false)}
+			/>
+			<SelectSemesterModal
+				visible={semesterModalVisible}
+				onDismiss={() => setSemesterModalVisible(false)}
+				semesters={semesters}
+				onSelect={handleSemesterSelect}
 			/>
 		</View>
 	);
