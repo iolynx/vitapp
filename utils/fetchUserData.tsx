@@ -67,21 +67,12 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
 			loginForm.querySelector('[name="captchaStr"]').value = '${text.replace(/'/g, "\\'")}';
 
-			// Submit the form
-			loginForm.submit(); 
-
-			setTimeout(() => {
-				let responseText = {
-					status: "SUBMITTED_FORM",
-					pageText: document.body.innerText || "No content detected"
-				};
-
-				window.ReactNativeWebView.postMessage(JSON.stringify(responseText));
-			}, 3000); // Wait 5s for content to load
+			loginForm.submit();
 		})();
 		`);
 		console.log('Form Submitted');
 		setTimeout(() => {
+			console.log('Going to Validate Login...');
 			injectScript('fetchSemesters');
 		}, 5000);
 	};
@@ -205,12 +196,28 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				injectScript('submitForm', username, password);
 				console.log('Form Submitted');
 
+				setTimeout(() => {
+					injectScript('validateLogin');
+				}, 3000);
+
 				// setShowReCaptchaDialog(true);
 				// console.log(showReCaptchaDialog);
 				break;
 
+			case 'LOGIN_VALIDATED':
+				console.log('Validating Login...');
+				if (data.error_message) {
+					console.log(data.error_message);
+					setLoading(false);
+					onDataFetched(data.error_message);
+				} else {
+					console.log('Login Validated');
+					injectScript('fetchSemesters');
+				}
+
 			case 'SUBMITTED_FORM':
 				console.log('In Home Page..');
+				console.log('Page Text: ', data.page_text);
 
 				setUrl('https://vtopcc.vit.ac.in/vtop/content');
 				console.log('Fetching Semesters...');
@@ -239,8 +246,10 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'GOT_CREDITS_CGPA':
 				console.log('Fetched Credits & CGPA');
 
-				saveInfo('credits', JSON.stringify(data.total_credits));
-				saveInfo('cgpa', JSON.stringify(data.cgpa));
+				if (data.total_credits && data.cgpa) {
+					saveInfo('credits', JSON.stringify(data.total_credits));
+					saveInfo('cgpa', JSON.stringify(data.cgpa));
+				}
 
 				console.log('getting courses now...');
 				console.log('selectedSemester: ', selectedSemester);

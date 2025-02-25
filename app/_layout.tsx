@@ -8,19 +8,8 @@ import { useColorScheme } from 'react-native';
 
 export default function RootLayout() {
 
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ?
-    {
-      ...MD3DarkTheme,
-      colors: {
-        ...MD3DarkTheme.colors,
-      },
-    } : {
-      ...MD3LightTheme,
-      colors: {
-        ...MD3LightTheme.colors,
-      },
-    };
+  const colorScheme = useColorScheme(); //"light" or "dark"
+  const theme = colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme;
 
   return (
     <PaperProvider theme={theme}>

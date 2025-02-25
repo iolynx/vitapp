@@ -2,7 +2,7 @@ import { View, StyleSheet } from "react-native";
 import { useTheme, Card, Text, TextInput, Button } from "react-native-paper";
 import React, { useEffect, useState } from 'react';
 import FetchUserData from "@/utils/fetchUserData";
-
+import * as SecureStore from "expo-secure-store";
 
 
 export default function Index() {
@@ -14,7 +14,31 @@ export default function Index() {
 
   const theme = useTheme();
 
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      try {
+        const storedUsername = await SecureStore.getItemAsync("username");
+        const storedPassword = await SecureStore.getItemAsync("password");
+
+        if (storedUsername) setUsername(storedUsername);
+        if (storedPassword) setPassword(storedPassword);
+      } catch (error) {
+        console.error("Error retrieving credentials:", error);
+      }
+    };
+
+    fetchCredentials();
+  }, [])
+
+
   const handleLogin = () => {
+    // stores password & username,
+    // todo: make sure it only saves if login succeeds
+    if (username !== '' && password !== '') {
+      SecureStore.setItem('username', username);
+      SecureStore.setItem('password', password);
+    }
+
     setFetching(false);
     setTimeout(() => {
       setFetching(true);
