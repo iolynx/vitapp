@@ -71,7 +71,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		})();
 		`);
 		console.log('Form Submitted');
-		injectScript('fetchSemesters');
+		setTimeout(() => {
+			injectScript('fetchSemesters');
+		}, 2000);
 	};
 
 
