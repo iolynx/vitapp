@@ -21,19 +21,65 @@ const scripts = {
 
 		})();
 		`,
+
+	validateLogin_: `
+		setTimeout(() => {
+			(function() {
+				try {
+					var errorPattern = '/\b(Invalid\s*Captcha|Invalid\s*Username\s*\/?\s*Password|Maximum\s*(no\.?|number)?\s*of\s*Attempts\s*reached|Account\s*Locked)\b/i';
+					var pageText = document.documentElement.innerText || "";
+
+					if (!pageText.trim()) {
+						window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'ERROR', message: 'No page text found' }));
+						return;
+					}
+
+					var match = pageText.match(errorPattern);
+					if (match) {
+						window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', error_message: match[0] }));
+						return;
+					}
+
+					window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', message: pageText }));
+				} catch (e) {
+					window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'ERROR', message: e.message }));
+				}
+			})();
+		}, 2000); // Wait for 2 seconds
+	`,
+
 	validateLogin: `
 		(function() {
-			const errorPattern = /(Invalid Captcha|Invalid Username\/Password|Maximum|reached|Account Locked)/i;
-			const pageText = document.body.innerText || "";
-			
-			const match = pageText.match(errorPattern);
-			if (match) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', error_message: match[0] }));
-				return;
+			const errorMessages = [
+				"Invalid Captcha",
+				"Invalid LoginId/Password",
+				"Invalid Username/Password",
+				"Invalid Username",
+				"Maximum no. of Attempts reached",
+				"Maximum number of Attempts reached",
+				"Account Locked"
+			];
+
+			var pageText = document.documentElement.innerText || "";
+
+			// Normalize spaces to handle inconsistent spacing
+			var cleanedText = pageText.replace(/\s+/g, ' ').trim();
+
+			for (var i = 0; i < errorMessages.length; i++) {
+				if (cleanedText.includes(errorMessages[i])) {
+					window.ReactNativeWebView.postMessage(JSON.stringify({ 
+						status: 'LOGIN_VALIDATED', 
+						error_message: errorMessages[i] 
+					}));
+					return;
+				}
 			}
 
-			// If no error is found, send a success response
-			window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', message: 'ok' }));
+			window.ReactNativeWebView.postMessage(JSON.stringify({ 
+				status: 'LOGIN_VALIDATED', 
+				message: 'ok', 
+				page_text: pageText 
+			}));
 		})();
 	`,
 	detectPage: `

@@ -5,6 +5,7 @@ import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import CaptchaDialog from "@/components/CaptchaDialog";
 import SelectSemesterModal from "@/components/SelectSemesterModal";
 import scripts from "./scripts";
+import LoginErrorModal from "@/components/LoginErrorModal";
 
 
 interface FetchUserDataProps {
@@ -27,8 +28,12 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const [lastMessage, setLastMessage] = useState(null);
 	const [gettingCaptcha, setGettingCaptcha] = useState(false);
 	const [webViewVisibility, setWebViewVisibility] = useState(1);
+
 	const [semesterModalVisible, setSemesterModalVisible] = useState(false);
 	const [selectedSemester, setSelectedSemester] = useState('');
+
+	const [errorModalVisible, setErrorModalVisible] = useState(false);
+	const [errorModalMessage, setErrorModalMessage] = useState('');
 
 	function saveInfo(key: string, value: string) {
 		SecureStore.setItem(key, value);
@@ -72,8 +77,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		`);
 		console.log('Form Submitted');
 		setTimeout(() => {
-			injectScript('fetchSemesters');
-		}, 2000);
+			console.log('Validating login...');
+			injectScript('validateLogin');
+		}, 2500);
 	};
 
 
@@ -206,13 +212,15 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'LOGIN_VALIDATED':
 				console.log('Validating Login...');
 				if (data.error_message) {
-					console.log(data.error_message);
-					setLoading(false);
-					onDataFetched(data.error_message);
+					console.log('Error Message: ', data.error_message);
+					setErrorModalMessage('Error: ' + data.error_message);
+					setErrorModalVisible(true);
 				} else {
+					console.log('pageText: ', data.page_text);
 					console.log('Login Validated');
 					injectScript('fetchSemesters');
 				}
+				break;
 
 			case 'SUBMITTED_FORM':
 				console.log('In Home Page..');
@@ -327,6 +335,14 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				onDismiss={() => setSemesterModalVisible(false)}
 				semesters={semesters}
 				onSelect={handleSemesterSelect}
+			/>
+			<LoginErrorModal
+				visible={errorModalVisible}
+				message={errorModalMessage}
+				onClose={() => {
+					setErrorModalVisible(false);
+					setLoading(false);
+				}}
 			/>
 		</View>
 	);
