@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import CaptchaDialog from "@/components/CaptchaDialog";
 import SelectSemesterModal from "@/components/SelectSemesterModal";
+import scripts from "./scripts";
 
 
 interface FetchUserDataProps {
@@ -29,8 +30,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const [semesterModalVisible, setSemesterModalVisible] = useState(false);
 	const [selectedSemester, setSelectedSemester] = useState('');
 
-	async function saveInfo(key: string, value: string) {
-		await SecureStore.setItemAsync(key, value);
+	function saveInfo(key: string, value: string) {
+		SecureStore.setItem(key, value);
 	}
 
 	const handleSemesterSelect = (selectedSem: string) => {
@@ -43,7 +44,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 		console.log('Selected: ', selectedSem);
 		setSelectedSemester(selectedSem);
-		setCurrentStep('getName');
+		injectScript('getName');
 	}
 
 	const handleCaptchaSubmit = (text: string) => {
@@ -81,295 +82,10 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		`);
 		console.log('Form Submitted');
 		setTimeout(() => {
-			setCurrentStep('fetchSemesters');
+			injectScript('fetchSemesters');
 		}, 5000);
 	};
 
-
-	const scripts = {
-		submitForm: `
-		(function() {
-			// Clear previous intervals
-			if (typeof captchaInterval !== 'undefined') clearInterval(captchaInterval);
-			if (typeof executeInterval !== 'undefined') clearInterval(executeInterval);
-
-			const loginForm = document.querySelector('#vtopLoginForm');
-			if (!loginForm) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ error: 'Login form not found' }));
-				return;
-			}
-
-			// Fill login form fields
-			loginForm.querySelector('[name="username"]').value = '${username.replace(/'/g, "\\'")}';
-			loginForm.querySelector('[name="password"]').value = '${password.replace(/'/g, "\\'")}';
-
-			grecaptcha.execute();
-
-			setTimeout(() => {
-				let responseText = {
-					status: "SUBMITTED_FORM",
-					pageText: document.body.innerText || "No content detected"
-				};
-
-				window.ReactNativeWebView.postMessage(JSON.stringify(responseText));
-			}, 5000); // Wait 5s for content to load
-		})();
-		`,
-		detectPage: `
-        (function() {
-            const response = { page_type: 'LANDING' };
-			console.log("this is from the injected script")
-            
-            if (document.querySelector('input[id="authorizedIDX"]')) {
-                response.page_type = 'HOME';
-            }
-            
-            if (document.querySelector('form[id="vtopLoginForm"]')) {
-                response.page_type = 'LOGIN';
-            }
-			
-			response.status = 'DETECTED_PAGE'
-
-            window.ReactNativeWebView.postMessage(JSON.stringify(response));
-        })();
-    `,
-
-		openSignInNew: `
-		(function() {
-			document.forms['stdForm'].submit();
-			const response = { success: false };
-			setTimeout(() => {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ success: true, status: 'OPENED_SIGNIN' }));
-			}, 4000); 
-		})();
-	`,
-		openSignIn: `
-		(function() {
-			const response = { success: false, status: 'OPENED_SIGNIN' };
-			const formData = new URLSearchParams(new FormData(document.getElementById("stdForm")));
-
-			fetch("https://vtopcc.vit.ac.in/vtop/prelogin/setup", {
-				method: "POST",
-				body: formData
-			})
-			.then(res => {
-				response.success = res.ok; // Mark success if HTTP status is OK (200-299)
-			})
-			.catch(() => {
-				response.success = false;
-			})
-			.finally(() => {
-				window.ReactNativeWebView.postMessage(JSON.stringify(response));
-			});
-		})();
-    `,
-		getCaptchaType: `
-		(function() {
-			try {
-				const response = { captcha_type: 'DEFAULT' };
-
-				// Check for presence of the element without jQuery
-				if (document.querySelector('input#gResponse')) {
-					response.captcha_type = 'GRECAPTCHA';
-				}
-				response.status = 'GOT_CAPTCHA_TYPE';
-
-				window.ReactNativeWebView.postMessage(JSON.stringify(response));
-			} catch (error) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message, status: 'GOT_CAPTCHA_TYPE' }));
-			}
-		})();
-		`,
-
-		getCaptchaTypeOld: `
-		(function() {
-				const response = {
-						captcha_type: 'DEFAULT',
-				};
-
-				if ($('input[id="gResponse"]').length === 1) {
-						response.captcha_type = 'GRECAPTCHA';
-				}
-
-			setTimeout(() => {
-				window.ReactNativeWebView.postMessage(JSON.stringify(response));
-			}, 1000);
-		})();
-		`,
-
-		getOuterHTML: `
-		(function waitForPage() {
-			if (document.readyState === 'complete') {
-				window.ReactNativeWebView.postMessage(JSON.stringify({
-					html: document.documentElement.outerHTML,
-					status: 'GOT_CAPTCHA'
-				}));
-			} else {
-				setTimeout(waitForPage, 1000); 
-			}
-		})();
-		`,
-
-		getOuterHTML_: `
-		(function waitForLoad() {
-			if (document.readyState === 'complete') {
-				window.ReactNativeWebView.postMessage(JSON.stringify({
-					html: document.documentElement.outerHTML,
-					status: 'GOT_CAPTCHA'
-				}));
-			} else {
-				setTimeout(waitForLoad, 500); 
-			}
-		})();
-		`,
-
-		getCaptcha: `
-		(function waitForCaptcha() {
-			const captchaImg = document.querySelector('#captchaBlock img');
-
-			if (captchaImg) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({
-					captcha: captchaImg.src,
-					status: 'GOT_CAPTCHA'
-				}));
-			} else {
-				setTimeout(waitForCaptcha, 500); // Retry every 500ms until captcha is found
-			}
-		})();
-		`,
-
-		greCaptcha: `
-		(function() {
-			const siteKey = document.querySelector('.g-recaptcha')?.getAttribute('data-sitekey');
-			window.ReactNativeWebView.postMessage(JSON.stringify({ siteKey: siteKey, status: 'GOT_SITEKEY' }));
-		})();
-	`,
-
-		fetchSemesters: `
-		(async function () {
-			const authorizedID = document.getElementById('authorizedIDX')?.value;
-			const csrfToken = document.querySelector('input[name="_csrf"]')?.value;
-			const timestamp = new Date().getTime();
-
-			const data = new URLSearchParams({
-				verifyMenu: "true",
-				authorizedID: authorizedID || "",
-				_csrf: csrfToken || "",
-				nocache: timestamp
-			});
-
-			let response = {status: 'FETCHED_SEMESTERS'};
-
-			try {
-				const res = await fetch("academics/common/StudentTimeTableChn", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/x-www-form-urlencoded",
-					},
-					body: data.toString(),
-				});
-
-				const text = await res.text();
-				const lowerText = text.toLowerCase();
-
-				if (lowerText.includes("not authorized")) {
-					response = {
-						error_code: 1,
-						error_message: "Unauthorised user agent"
-					};
-				} else if (lowerText.includes("time table")) {
-					const parser = new DOMParser();
-					const doc = parser.parseFromString(text, "text/html");
-					const options = doc.querySelectorAll("#semesterSubId option");
-
-					response.semesters = Array.from(options)
-						.filter(option => option.value)
-						.map(option => ({
-							name: option.innerText,
-							id: option.value
-						}));
-				}
-			} catch (error) {
-				console.error("Error fetching timetable:", error);
-			}
-
-			window.ReactNativeWebView.postMessage(JSON.stringify(response));
-		})();
-		`,
-		getName: `
-		(function() {
-			var data = 'verifyMenu=true&authorizedID=' + $('#authorizedIDX').val() + '&_csrf=' + $('input[name="_csrf"]').val() + '&nocache=@' + (new Date().getTime());
-			var response = { status: 'GOT_NAME' };
-			$.ajax({
-				type: 'POST',
-				url: 'studentsRecord/StudentProfileAllView',
-				data: data,
-				async: false,
-				success: function(res) {
-					if (res.toLowerCase().includes('personal information')) {
-						var doc = new DOMParser().parseFromString(res, 'text/html');
-						var cells = doc.getElementsByTagName('td');
-						for (var i = 0; i < cells.length; ++i) {
-							var key = cells[i].innerText.toLowerCase();
-							if (key.includes('student') && key.includes('name')) {
-								response.name = cells[++i].innerHTML;
-								break;
-							}
-						}
-					}
-				}
-			});
-			window.ReactNativeWebView.postMessage(JSON.stringify(response));
-		})();
-		`,
-		getCreditsAndCGPA: `
-		(function() {
-			var data = 'verifyMenu=true&authorizedID=' + $('#authorizedIDX').val() + 
-					   '&_csrf=' + $('input[name="_csrf"]').val() + 
-					   '&nocache=' + (new Date().getTime());
-
-			var response = {};
-
-			$.ajax({
-				type: 'POST',
-				url: 'examinations/examGradeView/StudentGradeHistory',
-				data: data,
-				async: false,
-				success: function(res) {
-					var doc = new DOMParser().parseFromString(res, 'text/html');
-					var tables = doc.getElementsByTagName('table');
-
-					for (var i = tables.length - 1; i >= 0; --i) {
-						var headings = tables[i].getElementsByTagName('tr')[0].getElementsByTagName('td');
-
-						if (headings[0].innerText.toLowerCase().includes('credits')) {
-							var creditsIndex, cgpaIndex;
-
-							for (var j = 0; j < headings.length; ++j) {
-								var heading = headings[j].innerText.toLowerCase();
-								if (heading.includes('earned')) {
-									creditsIndex = j + headings.length;
-								} else if (heading.includes('cgpa')) {
-									cgpaIndex = j + headings.length;
-								}
-							}
-
-							var cells = tables[i].getElementsByTagName('td');
-							response.cgpa = parseFloat(cells[cgpaIndex].innerText) || 0;
-							response.total_credits = parseFloat(cells[creditsIndex].innerText) || 0;
-							break;
-						}
-					}
-
-					// Send the data back to React Native
-					window.ReactNativeWebView.postMessage(JSON.stringify(response));
-				}
-			});
-		})();
-
-		` ,
-
-	}
 
 
 	const handleMessage = (event: any) => {
@@ -421,14 +137,14 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 							break;
 						}
 
-						setCurrentStep('openSignIn');
+						injectScript('openSignIn');
 						setCount(count + 1);
 						break;
 
 					case 'LOGIN':
 						// in login page
 						console.log('In Login Page');
-						setCurrentStep('getCaptchaType');
+						injectScript('getCaptchaType');
 						break;
 
 					case 'HOME':
@@ -444,12 +160,12 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					console.log('Auth Success. Proceeding to Login Page...');
 					setUrl('https://vtopcc.vit.ac.in/vtop/login');
 					setTimeout(() => {
-						setCurrentStep('getCaptchaType');
+						injectScript('getCaptchaType');
 					}, 300);
 				} else if (data.success === false) {
 					console.log('Auth Failure. Retrying...');
 					setUrl('https://vtopcc.vit.ac.in/');
-					setCurrentStep('openSignIn');
+					injectScript('openSignIn');
 				} else {
 					console.log('weird response: \n', data);
 				}
@@ -463,14 +179,14 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					//  wait for a few seconds for the page to load before
 					//  getting the captcha challenge
 					setTimeout(() => {
-						setCurrentStep('getCaptcha');
+						injectScript('getCaptcha');
 					}, 700);
 					console.log('bye');
 					setGettingCaptcha(true);
 				} else if (data.captcha_type == 'GRECAPTCHA') {
 					console.log('Captcha Type: greCaptcha');
 					// todo: later
-					setCurrentStep('greCaptcha');
+					injectScript('greCaptcha');
 				}
 				break;
 
@@ -486,7 +202,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				break;
 
 			case 'GOT_SITEKEY':
-				webViewRef.current.injectJavaScript(scripts['submitForm']);
+				injectScript('submitForm', username, password);
 				console.log('Form Submitted');
 
 				// setShowReCaptchaDialog(true);
@@ -498,7 +214,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 				setUrl('https://vtopcc.vit.ac.in/vtop/content');
 				console.log('Fetching Semesters...');
-				setCurrentStep('fetchSemesters');
+				injectScript('fetchSemesters');
 				break;
 
 			case 'RECAPTCHA_SHOWN':
@@ -517,16 +233,27 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'GOT_NAME':
 				console.log('Hello, ', data.name);
 				saveInfo('name', data.name);
-				setCurrentStep('getCreditsAndCGPA');
+				injectScript('getCreditsAndCGPA');
 				break;
 
 			case 'GOT_CREDITS_CGPA':
 				console.log('Fetched Credits & CGPA');
+
+				saveInfo('credits', JSON.stringify(data.total_credits));
+				saveInfo('cgpa', JSON.stringify(data.cgpa));
+
+				console.log('getting courses now...');
+				console.log('selectedSemester: ', selectedSemester);
+				injectScript('getCourses', selectedSemester);
+				break;
+
+			case 'GOT_COURSES':
+				console.log('Fetched Courses');
 				console.log(data);
-				saveInfo('credits', data.total_credits);
-				saveInfo('cgpa', data.cgpa);
-
-
+				saveInfo('courses', JSON.stringify(data.courses));
+				console.log('selectedSemester: ', selectedSemester);
+				injectScript('getTimeTable', selectedSemester);
+				break;
 
 			case 'FINISHED':
 				setLoading(false);
@@ -535,16 +262,31 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		}
 	}
 
-	const injectScript = (step: string) => {
+
+	// useEffect(() => {
+	// 	const specialScripts = ['getCourses', 'getTimeTable'];
+	//
+	// 	if (currentStep in specialScripts){
+	// 		injectScript(currentStep, selectedSemester);
+	// 	} else {
+	// 		injectScript(currentStep); 
+	// 	}
+	// }, [currentStep])
+	//
+	const injectScript = (step: string, ...args: any[]) => {
 		const script = scripts[step];
-		if (script && webViewRef.current) {
-			webViewRef.current.injectJavaScript(script);
+
+		let scriptCode;
+		if (typeof script === "function") {
+			scriptCode = script(...args);
+		} else {
+			scriptCode = script;
+		}
+
+		if (scriptCode && webViewRef.current) {
+			webViewRef.current.injectJavaScript(scriptCode);
 		}
 	};
-
-	useEffect(() => {
-		injectScript(currentStep);
-	}, [currentStep])
 
 	return (
 		<View style={styles.container}>

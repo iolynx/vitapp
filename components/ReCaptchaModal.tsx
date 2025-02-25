@@ -28,7 +28,7 @@ const ReCaptchaModal = ({ visible, onCaptchaSolved }) => {
   `;
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} animationType="slide">
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center" }}>
         <View style={{ margin: 20, backgroundColor: "white", padding: 20, borderRadius: 10 }}>
           <WebView

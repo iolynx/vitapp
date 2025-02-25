@@ -21,7 +21,7 @@ const SelectSemesterModal: React.FC<SelectSemesterModalProps> = ({ visible, onDi
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss} style={styles.contentContainerStyle} >
+      <Modal visible={visible} onDismiss={onDismiss}>
         <Dialog.Title>Select a Semester</Dialog.Title>
         <View>
           {semesters.map((semester) => (
