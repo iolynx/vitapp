@@ -277,8 +277,14 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'GOT_TIMETABLE':
 				console.log('Lab: \n', data.lab);
 				console.log('Theory: \n', data.theory);
+				// TODO: save timetable
+
+				injectScript('getAttendance', selectedSemester);
+				break;
+
+			case 'GOT_ATTENDANCE':
+				console.log('Attendance: ', data);
 				setLoading(false);
-				onDataFetched('done getting timetable');
 				break;
 
 			case 'FINISHED':
@@ -288,17 +294,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		}
 	}
 
-
-	// useEffect(() => {
-	// 	const specialScripts = ['getCourses', 'getTimeTable'];
-	//
-	// 	if (currentStep in specialScripts){
-	// 		injectScript(currentStep, selectedSemester);
-	// 	} else {
-	// 		injectScript(currentStep); 
-	// 	}
-	// }, [currentStep])
-	//
 	const injectScript = (step: string, ...args: any[]) => {
 		const script = scripts[step];
 

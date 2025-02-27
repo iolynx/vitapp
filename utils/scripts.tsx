@@ -365,7 +365,7 @@ const scripts = {
 
 				var table = studentDetails.getElementsByTagName('table')[0];
 				var headings = table.getElementsByTagName('th');
-				var courseIndex, creditsIndex, slotVenueIndex, facultyIndex;
+				var courseIndex, creditsIndex, slotVenueIndex, facultyIndex, nbrIndex;
 
 				for (var i = 0; i < headings.length; ++i) {
 					var heading = headings[i].innerText.toLowerCase();
@@ -377,6 +377,8 @@ const scripts = {
 						slotVenueIndex = i;
 					} else if (heading.includes('faculty')) {
 						facultyIndex = i;
+					} else if (heading.includes('nbr')) {
+						nbrIndex = i;
 					}
 				}
 
@@ -387,6 +389,7 @@ const scripts = {
 
 				while (courseIndex < cells.length && 
 					   creditsIndex < cells.length && 
+						nbrIndex < cells.length && 
 					   slotVenueIndex < cells.length && 
 					   facultyIndex < cells.length) {
 						   
@@ -396,6 +399,7 @@ const scripts = {
 					var rawCredits = cells[creditsIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, ' ').trim().split(' ');
 					var rawSlotVenue = cells[slotVenueIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, '').split('-');
 					var rawFaculty = cells[facultyIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, '').split('-');
+					var rawNbr  = cells[nbrIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, '');
 
 					course.code = rawCourse.split('-')[0].trim();
 					course.title = rawCourse.split('-').slice(1).join('-').split('(')[0].trim();
@@ -405,11 +409,13 @@ const scripts = {
 					course.slots = rawSlotVenue[0].trim().split('+');
 					course.venue = rawSlotVenue.slice(1, rawSlotVenue.length).join(' - ').trim();
 					course.faculty = rawFaculty[0].trim();
+					course.nbr = rawNbr.trim();
 
 					response.courses.push(course);
 
 					courseIndex += headings.length + headingOffset;
 					creditsIndex += headings.length + headingOffset;
+					nbrIndex += headings.length + headingOffset;
 					slotVenueIndex += headings.length + headingOffset;
 					facultyIndex += headings.length + headingOffset;
 				}
@@ -510,6 +516,57 @@ const scripts = {
 			.catch(err => console.error(err))
 			.finally(() => window.ReactNativeWebView.postMessage(JSON.stringify(response, null, 2)));
 		})();
+	`,
+	getAttendance: (selectedSemester: String) => `
+	(function() {
+		var data = '_csrf=' + $('input[name="_csrf"]').val() + '&semesterSubId=' + '${selectedSemester}' + '&authorizedID=' + $('#authorizedIDX').val();
+		var response = {
+			attendance: [],
+			status: 'GOT_ATTENDANCE'
+		};
+		$.ajax({
+			type: 'POST',
+			url: 'processViewStudentAttendance',
+			data: data,
+			async: false,
+			success: function(res) {
+				var doc = new DOMParser().parseFromString(res, 'text/html');
+				var table = doc.getElementById('getStudentDetails');
+				var headings = table.getElementsByTagName('th');
+				var courseTypeIndex, slotIndex, attendedIndex, totalIndex, percentageIndex;
+				for (var i = 0; i < headings.length; ++i) {
+					var heading = headings[i].innerText.toLowerCase();
+					if (heading.includes('course') && heading.includes('type')) {
+						courseTypeIndex = i;
+					} else if (heading.includes('slot')) {
+						slotIndex = i;
+					} else if (heading.includes('attended')) {
+						attendedIndex = i;
+					} else if (heading.includes('total')) {
+						totalIndex = i;
+					} else if (heading.includes('percentage')) {
+						percentageIndex = i;
+					}
+				}
+				var cells = table.getElementsByTagName('td');
+				while (courseTypeIndex < cells.length && slotIndex < cells.length && attendedIndex < cells.length && totalIndex < cells.length && percentageIndex < cells.length) {
+					var attendanceObject = {};
+					attendanceObject.course_type = cells[courseTypeIndex].innerText.trim();
+					attendanceObject.slot = cells[slotIndex].innerText.trim().split('+')[0].trim();
+					attendanceObject.attended = parseInt(cells[attendedIndex].innerText.trim()) || 0;
+					attendanceObject.total = parseInt(cells[totalIndex].innerText.trim()) || 0;
+					attendanceObject.percentage = parseInt(cells[percentageIndex].innerText.trim()) || 0;
+					response.attendance.push(attendanceObject);
+					courseTypeIndex += headings.length;
+					slotIndex += headings.length;
+					attendedIndex += headings.length;
+					totalIndex += headings.length;
+					percentageIndex += headings.length;
+				}
+			}
+		});
+		window.ReactNativeWebView.postMessage(JSON.stringify(response));
+	})();
 	`
 };
 
