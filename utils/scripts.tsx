@@ -52,6 +52,7 @@ const scripts = {
 		(function() {
 			const errorMessages = [
 				"Invalid Captcha",
+				"VTOP Login",
 				"Invalid LoginId/Password",
 				"Invalid Username/Password",
 				"Invalid Username",
@@ -78,7 +79,6 @@ const scripts = {
 			window.ReactNativeWebView.postMessage(JSON.stringify({ 
 				status: 'LOGIN_VALIDATED', 
 				message: 'ok', 
-				page_text: pageText 
 			}));
 		})();
 	`,
@@ -292,11 +292,9 @@ const scripts = {
 	getCreditsAndCGPA: `
 		(function() {
 			var data = 'verifyMenu=true&authorizedID=' + $('#authorizedIDX').val() + 
-					   '&_csrf=' + $('input[name="_csrf"]').val() + 
-					   '&nocache=' + (new Date().getTime());
+					   '&_csrf=' + $('input[name="_csrf"]').val() ;
 
 			var response = { status: 'GOT_CREDITS_CGPA'};
-			window.ReactNativeWebView.postMessage(JSON.stringify(response));
 
 			$.ajax({
 				type: 'POST',
@@ -337,37 +335,43 @@ const scripts = {
 		` ,
 	getCourses: (selectedSemester: string) => `
 	(function() {
-		var data = '_csrf=' + $('input[name="_csrf"]').val() +
-				   '&semesterSubId=' + '${selectedSemester}' +
-				   '&authorizedID=' + $('#authorizedIDX').val() + 
-				   '&x=' + (new Date().toUTCString());
+		try {
+			var csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
+			var authorizedID = document.getElementById('authorizedIDX')?.value || '';
+			var selectedSemester = '${selectedSemester}';
+			var timestamp = new Date().toUTCString();
 
-		let response = {
-			status: 'GOT_COURSES',
-			courses: []
-		};
+			var data = \`_csrf=\${csrfToken}&semesterSubId=\${selectedSemester}&authorizedID=\${authorizedID}&x=\${timestamp}\`;
 
-		$.ajax({
-			type: 'POST',
-			url: 'processViewTimeTable',
-			data: data,
-			async: true,  // Keep async, but handle response properly
-			success: function(res) {
-				var doc = new DOMParser().parseFromString(res, 'text/html');
-				if (!doc.getElementById('studentDetailsList')) {
+			let response = {
+				status: 'GOT_COURSES',
+				courses: []
+			};
+
+			fetch('processViewTimeTable', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: data
+			})
+			.then(res => res.text())
+			.then(html => {
+				var doc = new DOMParser().parseFromString(html, 'text/html');
+				var studentDetails = doc.getElementById('studentDetailsList');
+
+				if (!studentDetails) {
 					window.ReactNativeWebView.postMessage(JSON.stringify({ error: "No student details found" }));
 					return;
 				}
 
-				var table = doc.getElementById('studentDetailsList').getElementsByTagName('table')[0];
+				var table = studentDetails.getElementsByTagName('table')[0];
 				var headings = table.getElementsByTagName('th');
 				var courseIndex, creditsIndex, slotVenueIndex, facultyIndex;
 
 				for (var i = 0; i < headings.length; ++i) {
 					var heading = headings[i].innerText.toLowerCase();
-					if (heading == 'course') {
+					if (heading === 'course') {
 						courseIndex = i;
-					} else if (heading == 'l t p j c') {
+					} else if (heading === 'l t p j c') {
 						creditsIndex = i;
 					} else if (heading.includes('slot')) {
 						slotVenueIndex = i;
@@ -387,11 +391,11 @@ const scripts = {
 					   facultyIndex < cells.length) {
 						   
 					var course = {};
-					var rawCourse = cells[courseIndex + offset].innerText.replace(/\t/g, '').replace(/\n/g, ' ');
+					var rawCourse = cells[courseIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, ' ');
 					var rawCourseType = rawCourse.split('(').slice(-1)[0].toLowerCase();
-					var rawCredits = cells[creditsIndex + offset].innerText.replace(/\t/g, '').replace(/\n/g, ' ').trim().split(' ');
-					var rawSlotVenue = cells[slotVenueIndex + offset].innerText.replace(/\t/g, '').replace(/\n/g, '').split('-');
-					var rawFaculty = cells[facultyIndex + offset].innerText.replace(/\t/g, '').replace(/\n/g, '').split('-');
+					var rawCredits = cells[creditsIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, ' ').trim().split(' ');
+					var rawSlotVenue = cells[slotVenueIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, '').split('-');
+					var rawFaculty = cells[facultyIndex + offset].innerText.replace(/\\t/g, '').replace(/\\n/g, '').split('-');
 
 					course.code = rawCourse.split('-')[0].trim();
 					course.title = rawCourse.split('-').slice(1).join('-').split('(')[0].trim();
@@ -411,97 +415,102 @@ const scripts = {
 				}
 
 				window.ReactNativeWebView.postMessage(JSON.stringify(response));
-			},
-			error: function(xhr, status, error) {
-				window.ReactNativeWebView.postMessage(JSON.stringify({ error: error, status: 'GOT_COURSES' }));
-			}
-		});
-
-	})();
-
-	`,
-	getTimetable: (selectedSemester: string) => `
-		(function() {
-			let data = '_csrf=' + $('input[name=\"_csrf\"]').val() + '&semesterSubId=' + '` + selectedSemester + `' + '&authorizedID=' + $('#authorizedIDX').val();
-			let response = { lab: [], theory: [], status: 'GOT_TIMETABLE' };
-
-			$.ajax({
-				type: 'POST',
-				url: 'processViewTimeTable',
-				data: data,
-				async: false,
-				success: function(res) {
-					let doc = new DOMParser().parseFromString(res, 'text/html');
-					let spans = doc.getElementById('getStudentDetails').getElementsByTagName('span');
-
-					if (spans[0].innerText.toLowerCase().includes('no record(s) found')) {
-						return;
-					}
-
-					let cells = doc.getElementById('timeTableStyle').getElementsByTagName('td');
-					let key, type, index = 0;
-
-					for (let i = 0; i < cells.length; ++i) {
-						let content = cells[i].innerText.toUpperCase().trim();
-
-						if (content.includes('THEORY')) {
-							type = 'theory';
-							index = 0;
-							continue;
-						} else if (content.includes('LAB')) {
-							type = 'lab';
-							index = 0;
-							continue;
-						}
-
-						switch (true) {
-							case content.includes('START'):
-								key = 'start_time';
-								continue;
-							case content.includes('END'):
-								key = 'end_time';
-								continue;
-							case content.includes('SUN'):
-								key = 'sunday';
-								continue;
-							case content.includes('MON'):
-								key = 'monday';
-								continue;
-							case content.includes('TUE'):
-								key = 'tuesday';
-								continue;
-							case content.includes('WED'):
-								key = 'wednesday';
-								continue;
-							case content.includes('THU'):
-								key = 'thursday';
-								continue;
-							case content.includes('FRI'):
-								key = 'friday';
-								continue;
-							case content.includes('SAT'):
-								key = 'saturday';
-								continue;
-							case content.includes('LUNCH'):
-								continue;
-						}
-
-						if (key === 'start_time') {
-							response[type].push({ start_time: content });
-						} else if (key === 'end_time') {
-							response[type][index++].end_time = content;
-						} else if (cells[i].bgColor === '#CCFF33') {
-							response[type][index++][key] = content.split('-')[0].trim();
-						} else {
-							response[type][index++][key] = null;
-						}
-					}
-				}
+			})
+			.catch(error => {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message, status: 'GOT_COURSES' }));
 			});
 
-			return response;
+		} catch (error) {
+			window.ReactNativeWebView.postMessage(JSON.stringify({ error: error.message, status: 'GOT_COURSES' }));
+		}
+	})();`,
+
+	getTimetable: (selectedSemester: string) => `
+	(function() {
+		var csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
+		var authorizedID = document.getElementById('authorizedIDX')?.value || '';
+		var selectedSemester = '${selectedSemester}';
+		var timestamp = new Date().toUTCString();
+
+		var data = \`_csrf=\${csrfToken}&semesterSubId=\${selectedSemester}&authorizedID=\${authorizedID}&x=\${timestamp}\`;
+
+		var response = {
+			lab: [],
+			theory: [],
+			status: 'GOT_TIMETABLE'
+		};
+
+		fetch("processViewTimeTable", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded"
+				},
+				body: data
+			})
+			.then(res => res.text())
+			.then(res => {
+				var doc = new DOMParser().parseFromString(res, "text/html");
+				var spans = doc.getElementById("getStudentDetails").getElementsByTagName("span");
+				if (spans[0].innerText.toLowerCase().includes("no record(s) found")) {
+					return;
+				}
+				var cells = doc.getElementById("timeTableStyle").getElementsByTagName("td");
+				var key, type;
+				for (var i = 0, j = 0; i < cells.length; ++i) {
+					var content = cells[i].innerText.toUpperCase();
+					if (content.includes("THEORY")) {
+						type = "theory";
+						j = 0;
+						continue;
+					} else if (content.includes("LAB")) {
+						type = "lab";
+						j = 0;
+						continue;
+					} else if (content.includes("START")) {
+						key = "start";
+						continue;
+					} else if (content.includes("END")) {
+						key = "end";
+						continue;
+					} else if (content.includes("SUN")) {
+						key = "sunday";
+						continue;
+					} else if (content.includes("MON")) {
+						key = "monday";
+						continue;
+					} else if (content.includes("TUE")) {
+						key = "tuesday";
+						continue;
+					} else if (content.includes("WED")) {
+						key = "wednesday";
+						continue;
+					} else if (content.includes("THU")) {
+						key = "thursday";
+						continue;
+					} else if (content.includes("FRI")) {
+						key = "friday";
+						continue;
+					} else if (content.includes("SAT")) {
+						key = "saturday";
+						continue;
+					} else if (content.includes("LUNCH")) {
+						continue;
+					}
+					if (key == "start") {
+						response[type].push({ start_time: content.trim() });
+					} else if (key == "end") {
+						response[type][j++].end_time = content.trim();
+					} else if (cells[i].bgColor == "#CCFF33") {
+						response[type][j++][key] = content.split("-")[0].trim();
+					} else {
+						response[type][j++][key] = null;
+					}
+				}
+			})
+			.catch(err => console.error(err))
+			.finally(() => window.ReactNativeWebView.postMessage(JSON.stringify(response, null, 2)));
 		})();
-		`
+	`
 };
 
 

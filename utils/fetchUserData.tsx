@@ -107,7 +107,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 		// logging progress to debug
 		console.log('-------------------');
-		console.log('Current Step: ', currentStep);
 		console.log('WebView Response: ', data);
 		// console.log('Current Status: ', status);
 
@@ -212,11 +211,10 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'LOGIN_VALIDATED':
 				console.log('Validating Login...');
 				if (data.error_message) {
-					console.log('Error Message: ', data.error_message);
+					console.log('Error Validating Login: ', data.error_message);
 					setErrorModalMessage('Error: ' + data.error_message);
 					setErrorModalVisible(true);
 				} else {
-					console.log('pageText: ', data.page_text);
 					console.log('Login Validated');
 					injectScript('fetchSemesters');
 				}
@@ -256,6 +254,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				if (data.total_credits && data.cgpa) {
 					saveInfo('credits', JSON.stringify(data.total_credits));
 					saveInfo('cgpa', JSON.stringify(data.cgpa));
+					console.log('Saved credits and cgpa info.');
 				}
 
 				console.log('getting courses now...');
@@ -265,10 +264,21 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			case 'GOT_COURSES':
 				console.log('Fetched Courses');
-				console.log(data);
-				saveInfo('courses', JSON.stringify(data.courses));
-				console.log('selectedSemester: ', selectedSemester);
-				injectScript('getTimeTable', selectedSemester);
+
+				// save to the securestore key value store
+				if (data.courses) {
+					saveInfo('courses', JSON.stringify(data.courses));
+				}
+
+				console.log('checking timetables now..');
+				injectScript('getTimetable', selectedSemester);
+				break;
+
+			case 'GOT_TIMETABLE':
+				console.log('Lab: \n', data.lab);
+				console.log('Theory: \n', data.theory);
+				setLoading(false);
+				onDataFetched('done getting timetable');
 				break;
 
 			case 'FINISHED':
