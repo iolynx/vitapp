@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import FetchUserData from "@/utils/fetchUserData";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
-
+import Timetable from '@/components/Timetable';
 // to the frontend guys, this is where yall gotta do that work
 
 export default function Index() {
@@ -30,9 +30,7 @@ export default function Index() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.secondaryContainer }]}>
-
-      <Text> This is where it shows all the cool shit like the data and shit !! </Text>
-
+      <Timetable /> 
     </View>
   );
 }
