@@ -285,6 +285,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'GOT_ATTENDANCE':
 				console.log('Attendance: ', data);
 				setLoading(false);
+				onDataFetched('LOGGED_IN');
 				break;
 
 			case 'FINISHED':
