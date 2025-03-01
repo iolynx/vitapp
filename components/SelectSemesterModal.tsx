@@ -8,7 +8,6 @@ interface Semester {
   name: string;
 }
 
-// Define props for the SelectSemesterModal component
 interface SelectSemesterModalProps {
   visible: boolean;
   onDismiss: () => void;
