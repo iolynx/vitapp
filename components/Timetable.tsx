@@ -17,11 +17,14 @@ import * as SecureStore from "expo-secure-store";
 const { width, height } = Dimensions.get('window'); // Get screen width and height
 
 type ClassDetails = {
-  title: string;
+  slot: string;
+  code: string;
+  venue: string;
+  type: string;
   start_time: string; // Start time of the class
   end_time: string;   // End time of the class
+  title: string;
   faculty: string;
-  venue: string;
   attendance: string;
 };
 
@@ -198,10 +201,13 @@ const Timetable = () => {
               <Card mode='contained' style={styles.modalCard}>
                 <Card.Content>
                   <Text style={styles.modalTitle}>{selectedClass?.title}</Text>
-                  <Text style={styles.modalText}>Time: {selectedClass?.start_time} - {selectedClass?.end_time}</Text>
+                  <Text style={styles.modalText}>{selectedClass?.code}</Text>
+                  <Text/>
                   <Text style={styles.modalText}>Faculty: {selectedClass?.faculty}</Text>
                   <Text style={styles.modalText}>Venue: {selectedClass?.venue}</Text>
-                  <Text style={styles.modalText}>Attendance: {selectedClass?.attendance}</Text>
+                  <View style={styles.slot}>
+                    <Text style={styles.modalText}>{selectedClass?.slot}</Text>
+                  </View>
                 </Card.Content>
               </Card>
             </Animated.View>
@@ -244,7 +250,7 @@ const styles = StyleSheet.create({
   attendanceCard: {
     width: 0.33 * width,
     alignSelf: 'center',
-    backgroundColor: '#615c70',
+    backgroundColor: '#5b5768',
     marginBottom: 12,
     borderRadius: 20,
     elevation: 2,
@@ -255,7 +261,7 @@ const styles = StyleSheet.create({
   attendanceContent: {
     alignItems: 'center', // Center items vertically
     justifyContent: 'space-between', // Space between time and subject name
-    paddingHorizontal: 16, // Add horizontal padding
+    paddingHorizontal: 15, // Add horizontal padding
   },
   attendance: {
     fontSize: 9,
@@ -271,7 +277,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 15,
+    paddingVertical: 10,
     padding: 10,
   },
   tabButton: {
@@ -293,7 +299,8 @@ const styles = StyleSheet.create({
   dayContainer: {
     width: width + 10, // Full screen width
     paddingHorizontal: 16,
-    paddingTop: 10, // Add some padding at the top
+    paddingTop: 10,
+    marginBottom: 10 
   },
   classCard: {
     marginBottom: 12,
@@ -309,8 +316,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, // Add horizontal padding
   },
   timeBackground: {
-    backgroundColor: '#615c70', // White background for the time
-    width: 60, // Width of the white background
+    backgroundColor: '#5b5768', // White background for the time
+    width: 65, // Width of the white background
     height: 80, // Full height of the card
     justifyContent: 'center',
     alignItems: 'center', // Center time vertically
@@ -349,7 +356,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', // Prevent stretching
     flexWrap: 'wrap',
     marginTop: 5
-  },
+   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
@@ -357,19 +364,19 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     width: '100%',
-    backgroundColor: '#333', // Dark background for bottom sheet
+    backgroundColor: '#5b5768', // Dark background for bottom sheet
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
   },
   modalCard: {
-    backgroundColor: '#333', // Dark background for modal
+    backgroundColor: '#5b5768', // Dark background for modal
     borderRadius: 10,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 3,
     color: '#fff', // White text for modal title
   },
   modalText: {
@@ -377,6 +384,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#fff', // White text for modal content
   },
+  slot: {
+    padding: 1,
+    paddingBottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 30,
+    width: 50,
+    backgroundColor: ' rgb(66, 63, 74)',
+    borderWidth: 1,
+    borderRadius: 5,
+    borderColor: '#fff',
+    borderStyle: 'solid'
+  }
 });
 
 export default Timetable;
