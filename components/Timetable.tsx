@@ -9,17 +9,17 @@ import {
   Modal,
   Animated,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Card, Button } from 'react-native-paper';
 import * as SecureStore from "expo-secure-store";
 
 const { width, height } = Dimensions.get('window'); // Get screen width and height
 
-
 type ClassDetails = {
-  name: string;
-  startTime: string; // Start time of the class
-  endTime: string;   // End time of the class
+  title: string;
+  start_time: string; // Start time of the class
+  end_time: string;   // End time of the class
   faculty: string;
   venue: string;
   attendance: string;
@@ -33,7 +33,6 @@ const toTitleCase = (str: string): string => {
     .join(" ");
 };
 
-
 const Timetable = () => {
   const [selectedDay, setSelectedDay] = useState(0); // Track the selected day
   const [selectedClass, setSelectedClass] = useState<ClassDetails | null>(null); // Track the selected class for details
@@ -41,7 +40,30 @@ const Timetable = () => {
   const slideAnim = useRef(new Animated.Value(height)).current; // Animation value for bottom sheet
   const [storedName, setStoredName] = useState<string | null>(null);
   const [storedUsername, setStoredUsername] = useState<string | null>(null);
+  const [timetableData, setTimetableData] = useState<{ day: string; classes: ClassDetails[] }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchTimetableData = async () => {
+      try {
+        const data = await SecureStore.getItemAsync('timetable');
+        if (data) {
+          const parsedData = JSON.parse(data); // Parse the stringified data
+          setTimetableData(parsedData); // Set the parsed data to state
+        } else {
+          setError('No timetable data found.'); // Handle case where data is not available
+        }
+      } catch (err) {
+        setError('Failed to fetch timetable data.'); // Handle errors
+        console.error(err);
+      } finally {
+        setIsLoading(false); // Set loading to false after fetching
+      }
+    };
+
+    fetchTimetableData();
+  }, []);
 
   useEffect(() => {
     const fetchName = async () => {
@@ -52,7 +74,7 @@ const Timetable = () => {
     };
     fetchName();
   }, []);
-  
+
   useEffect(() => {
     const fetchUsername = async () => {
       const username = await SecureStore.getItemAsync("username");
@@ -62,58 +84,8 @@ const Timetable = () => {
     };
     fetchUsername();
   }, []);
-  
-  const timetableData: { day: string; classes: ClassDetails[] }[] = [
-    {
-      day: 'Monday',
-      classes: [
-        { name: 'BCSE401L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-        { name: 'BHUM110E', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-        { name: 'BCSE209L', startTime: '10:45', endTime: '11:35', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-      ],
-    },
-    {
-      day: 'Tuesday',
-      classes: [
-        { name: 'BCSE401L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-        { name: 'BHUM110E', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-      ],
-    },
-    {
-      day: 'Wednesday',
-      classes: [
-        { name: 'BCSE206L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '100%' },
-        { name: 'BCSE309L', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BCSE401L', startTime: '10:45', endTime: '11:35', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-      ],
-    },
-    {
-      day: 'Thursday',
-      classes: [
-        { name: 'BHUM110E', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-        { name: 'BCSE209L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BCSE401L', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-      ],
-    },
-    {
-      day: 'Friday',
-      classes: [
-        { name: 'BCSE206L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '100%' },
-        { name: 'BCSE309L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BHUM110E', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-      ],
-    },
-    {
-      day: 'Saturday',
-      classes: [],
-    },
-    {
-      day: 'Sunday',
-      classes: [],
-    }
-  ];
 
-  const days = ['M', 'T', 'W', 'T', 'F','S','S']; // Shortened day names for the tab bar
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // Shortened day names for the tab bar
 
   // Handle day selection from the tab bar
   const handleDaySelect = (index: number) => {
@@ -143,21 +115,29 @@ const Timetable = () => {
   };
 
   const renderDay = ({ item }: { item: { day: string; classes: ClassDetails[] } }) => (
-    <View style={styles.dayContainer}>
+    <ScrollView style={styles.dayContainer}>
       {item.classes.map((cls, index) => (
         <TouchableOpacity key={index} onPress={() => handleClassPress(cls)}>
           <Card style={styles.classCard}>
             <Card.Content style={styles.cardContent}>
-              <View style={styles.timeContainer}>
-                <Text style={styles.time}>{cls.startTime}</Text>
-                <Text style={styles.time}>{cls.endTime}</Text>
+              <View style={styles.timeBackground}>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.time}>{cls.start_time}</Text>
+                  <Text style={styles.time}>{cls.end_time}</Text>
+                </View>
               </View>
-              <Text style={styles.classText}>{cls.name}</Text>
+              <View style={styles.subject}>
+                <Text style={styles.classText}>{cls.title}</Text>
+                <Text style={styles.venueText}>{cls.venue}</Text>
+              </View>
+              <View>
+
+              </View>
             </Card.Content>
           </Card>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 
   return (
@@ -171,10 +151,9 @@ const Timetable = () => {
           <Card.Content style={styles.attendanceContent}>
             <Text style={styles.attendancePerc}>93%</Text>
             <Text style={styles.attendance}>Overall Attendance</Text>
-            {/* <Text style={styles.attendance}>Attendance</Text> */}
           </Card.Content>
         </Card>
-        </View>
+      </View>
       <View style={styles.tabBar}>
         {days.map((day, index) => (
           <TouchableOpacity
@@ -216,8 +195,8 @@ const Timetable = () => {
             >
               <Card mode='contained' style={styles.modalCard}>
                 <Card.Content>
-                  <Text style={styles.modalTitle}>{selectedClass?.name}</Text>
-                  <Text style={styles.modalText}>Time: {selectedClass?.startTime} - {selectedClass?.endTime}</Text>
+                  <Text style={styles.modalTitle}>{selectedClass?.title}</Text>
+                  <Text style={styles.modalText}>Time: {selectedClass?.start_time} - {selectedClass?.end_time}</Text>
                   <Text style={styles.modalText}>Faculty: {selectedClass?.faculty}</Text>
                   <Text style={styles.modalText}>Venue: {selectedClass?.venue}</Text>
                   <Text style={styles.modalText}>Attendance: {selectedClass?.attendance}</Text>
@@ -240,9 +219,9 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   nameContainer: {
-    width: 0.6*width,
-    justifyContent: 'center', 
-    textAlign: 'left'
+    width: 0.6 * width,
+    justifyContent: 'center',
+    textAlign: 'left',
   },
   name: {
     paddingLeft: 20,
@@ -259,7 +238,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
   },
   attendanceCard: {
-    width:0.33*width,
+    width: 0.33 * width,
     alignSelf: 'center',
     backgroundColor: '#615c70',
     marginBottom: 12,
@@ -267,7 +246,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     height: 100, // Increased height for class cards
     justifyContent: 'center', // Center content vertically
-    marginHorizontal: 10
+    marginHorizontal: 10,
   },
   attendanceContent: {
     alignItems: 'center', // Center items vertically
@@ -276,12 +255,14 @@ const styles = StyleSheet.create({
   },
   attendance: {
     fontSize: 10,
-    color: '#ddd', 
+    color: '#ddd',
+    fontFamily: 'Helvetica',
   },
   attendancePerc: {
     fontSize: 40,
     color: '#fff',
-
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica',
   },
   tabBar: {
     flexDirection: 'row',
@@ -320,8 +301,19 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: 'row', // Align time and subject name side by side
     alignItems: 'center', // Center items vertically
-    justifyContent: 'space-between', // Space between time and subject name
+    // justifyContent: 'space-between', // Space between time and subject name
     paddingHorizontal: 16, // Add horizontal padding
+  },
+  timeBackground: {
+    backgroundColor: '#615c70', // White background for the time
+    width: 60, // Width of the white background
+    height: 80, // Full height of the card
+    justifyContent: 'center',
+    alignItems: 'center', // Center time vertically
+    borderTopLeftRadius: 20, // Match card border radius
+    borderBottomLeftRadius: 20,
+    marginTop: -16,
+    marginLeft: -16,
   },
   timeContainer: {
     alignItems: 'flex-start',
@@ -330,10 +322,26 @@ const styles = StyleSheet.create({
     fontSize: 16, // Slightly smaller font size for time
     color: '#ddd', // Light gray text for time
   },
+  subject: {
+    textAlign: 'left',
+    marginLeft: 16,
+    flex: 1,
+    flexShrink: 1, // Allow shrinking to fit within the card
+    flexWrap: 'wrap', 
+    marginTop: -25
+  },
   classText: {
-    fontSize: 20,
-    fontWeight: 'bold', // Make class name bold
-    color: '#fff', // White text for class names
+    fontSize: 16,
+    color: '#fff',
+    alignSelf: 'flex-start', // Prevent stretching
+    flexWrap: 'wrap', // Allow text wrapping
+  },
+  venueText: {
+    fontSize: 13,
+    color: '#fff',
+    alignSelf: 'flex-start', // Prevent stretching
+    flexWrap: 'wrap',
+    marginTop:5
   },
   modalOverlay: {
     flex: 1,
