@@ -52,7 +52,7 @@ const Timetable = () => {
     };
     fetchName();
   }, []);
-  
+
   useEffect(() => {
     const fetchUsername = async () => {
       const username = await SecureStore.getItemAsync("username");
@@ -62,7 +62,7 @@ const Timetable = () => {
     };
     fetchUsername();
   }, []);
-  
+
   const timetableData: { day: string; classes: ClassDetails[] }[] = [
     {
       day: 'Monday',
@@ -113,7 +113,7 @@ const Timetable = () => {
     }
   ];
 
-  const days = ['M', 'T', 'W', 'T', 'F','S','S']; // Shortened day names for the tab bar
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // Shortened day names for the tab bar
 
   // Handle day selection from the tab bar
   const handleDaySelect = (index: number) => {
@@ -170,11 +170,11 @@ const Timetable = () => {
         <Card style={styles.attendanceCard}>
           <Card.Content style={styles.attendanceContent}>
             <Text style={styles.attendancePerc}>93%</Text>
-            <Text style={styles.attendance}>Overall Attendance</Text>
+            <Text style={styles.attendance}>Overall Attendence</Text>
             {/* <Text style={styles.attendance}>Attendance</Text> */}
           </Card.Content>
         </Card>
-        </View>
+      </View>
       <View style={styles.tabBar}>
         {days.map((day, index) => (
           <TouchableOpacity
@@ -240,8 +240,8 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   nameContainer: {
-    width: 0.6*width,
-    justifyContent: 'center', 
+    width: 0.6 * width,
+    justifyContent: 'center',
     textAlign: 'left'
   },
   name: {
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
   },
   attendanceCard: {
-    width:0.33*width,
+    width: 0.33 * width,
     alignSelf: 'center',
     backgroundColor: '#615c70',
     marginBottom: 12,
@@ -275,8 +275,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, // Add horizontal padding
   },
   attendance: {
-    fontSize: 10,
-    color: '#ddd', 
+    fontSize: 9,
+    color: '#ddd',
   },
   attendancePerc: {
     fontSize: 40,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     color: '#fff', // White text for tabs
   },
   dayContainer: {
-    width: width+10, // Full screen width
+    width: width + 10, // Full screen width
     paddingHorizontal: 16,
     paddingTop: 10, // Add some padding at the top
   },
