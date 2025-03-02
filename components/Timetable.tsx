@@ -162,17 +162,19 @@ const Timetable = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.name}>{storedName}</Text>
-      <Text style={styles.reg}>{storedUsername}</Text>
-      <Card style={styles.attendanceCard}>
-        <Card.Content style={styles.attendanceContent}>
-          <View style={styles.timeContainer}>
+      <View style={styles.cont}>
+        <View style={styles.nameContainer}>
+          <Text style={styles.name}>{storedName}</Text>
+          <Text style={styles.reg}>{storedUsername}</Text>
+        </View>
+        <Card style={styles.attendanceCard}>
+          <Card.Content style={styles.attendanceContent}>
+            <Text style={styles.attendancePerc}>93%</Text>
             <Text style={styles.attendance}>Overall Attendance</Text>
             {/* <Text style={styles.attendance}>Attendance</Text> */}
-          </View>
-          <Text style={styles.attendancePerc}>93%</Text>
-        </Card.Content>
-      </Card>
+          </Card.Content>
+        </Card>
+        </View>
       <View style={styles.tabBar}>
         {days.map((day, index) => (
           <TouchableOpacity
@@ -233,9 +235,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  cont: {
+    flexDirection: 'row',
+    paddingTop: 50,
+  },
+  nameContainer: {
+    width: 0.6*width,
+    justifyContent: 'center', 
+    textAlign: 'left'
+  },
   name: {
     paddingLeft: 20,
-    paddingTop: 50,
     color: '#fff',
     fontSize: 30,
     fontWeight: 'bold',
@@ -249,7 +259,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
   },
   attendanceCard: {
-    width: width-20,
+    width:0.33*width,
     alignSelf: 'center',
     backgroundColor: '#615c70',
     marginBottom: 12,
@@ -257,16 +267,15 @@ const styles = StyleSheet.create({
     elevation: 2,
     height: 100, // Increased height for class cards
     justifyContent: 'center', // Center content vertically
-    paddingHorizontal: 10
+    marginHorizontal: 10
   },
   attendanceContent: {
-    flexDirection: 'row', // Align time and subject name side by side
     alignItems: 'center', // Center items vertically
     justifyContent: 'space-between', // Space between time and subject name
     paddingHorizontal: 16, // Add horizontal padding
   },
   attendance: {
-    fontSize: 20,
+    fontSize: 10,
     color: '#ddd', 
   },
   attendancePerc: {
