@@ -19,6 +19,15 @@ interface Course {
 	nbr: string;
 }
 
+interface Attendance {
+	attended: number,
+	total: number,
+	course_code: string,
+	course_type: string,
+	slot: string,
+	percentage: number
+}
+
 interface FetchUserDataProps {
 	username: string,
 	password: string,
@@ -46,7 +55,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 	const [errorModalVisible, setErrorModalVisible] = useState(false);
 	const [errorModalMessage, setErrorModalMessage] = useState('');
 	const [courses, setCourses] = useState<Course[]>([]);
-
+	const [attendance, setAttendance] = useState<Attendance[]>([]);
 
 	function saveInfo(key: string, value: string) {
 		SecureStore.setItem(key, value);
@@ -285,38 +294,46 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				}
 
 				console.log('checking timetables now..');
-				injectScript('getTimetable', selectedSemester);
-				break;
-
-			case 'GOT_TIMETABLE':
-				//console.log('Timetable: ', data.timetable);
-
-				var timetable = data.timetable;
-
-				for (const day of timetable) {
-					for (const classObj of day.classes) {
-						const course = courses.find(c => c.code === classObj.code);
-						if (course) {
-							classObj.title = course.title;
-							classObj.faculty = course.faculty;
-						}
-					}
-				}
-
-				console.log(timetable);
-
-
-				saveInfo('timetable', JSON.stringify(timetable));
-
 				injectScript('getAttendance', selectedSemester);
 				break;
 
 			case 'GOT_ATTENDANCE':
 				console.log('Attendance: ', data);
-				saveInfo('attendance', JSON.stringify(data.attendance));
+
+				if (data.attendance) {
+					setAttendance(data.attendance);
+					saveInfo('attendance', JSON.stringify(data.attendance));
+				}
+
+				injectScript('getTimetable', selectedSemester);
+				break;
+
+			case 'GOT_TIMETABLE':
+				//console.log('Timetable: ', data.timetable);
+				var timetable = data.timetable;
+
+				for (const day of timetable) {
+					for (const classObj of day.classes) {
+						const course = courses.find(c => c.code === classObj.code);
+						const att = attendance.find(a => a.course_code === classObj.code);
+						if (course) {
+							classObj.title = course.title;
+							classObj.faculty = course.faculty;
+						}
+						if (att) {
+							classObj.attendance = att.percentage;
+						}
+					}
+				}
+
+				console.log('Final TT: \n', timetable);
+
+				saveInfo('timetable', JSON.stringify(timetable));
+
 				setLoading(false);
 				onDataFetched('LOGGED_IN');
 				break;
+
 
 			case 'FINISHED':
 				setLoading(false);

@@ -14,6 +14,7 @@ export default function AboutScreen() {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
+      paddingVertical: 50,
       backgroundColor: theme.colors.secondaryContainer,
     },
     webViewContainer: {
@@ -45,11 +46,8 @@ export default function AboutScreen() {
 
   return (
     <View style={styles.container}>
-      <Text variant="displayLarge"> This is the about page </Text>
-
-
-      <Text variant='headlineMedium'> About Us </Text>
-      <Text> We are pretty cool </Text>
+      <Text variant="displayMedium"> About Us </Text>
+      <Text variant="labelMedium"> We are pretty cool </Text>
 
       <Button mode="contained" onPress={clearData} style={styles.button}>
         Clear Data

@@ -9,20 +9,24 @@ import {
   Modal,
   Animated,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Card, Button } from 'react-native-paper';
 import * as SecureStore from "expo-secure-store";
+import AttendancePieChart from './AttendancePieChart';
 
 const { width, height } = Dimensions.get('window'); // Get screen width and height
 
-
 type ClassDetails = {
-  name: string;
-  startTime: string; // Start time of the class
-  endTime: string;   // End time of the class
-  faculty: string;
+  slot: string;
+  code: string;
   venue: string;
-  attendance: string;
+  type: string;
+  start_time: string; // Start time of the class
+  end_time: string;   // End time of the class
+  title: string;
+  faculty: string;
+  attendance: number;
 };
 
 const toTitleCase = (str: string): string => {
@@ -33,7 +37,6 @@ const toTitleCase = (str: string): string => {
     .join(" ");
 };
 
-
 const Timetable = () => {
   const [selectedDay, setSelectedDay] = useState(0); // Track the selected day
   const [selectedClass, setSelectedClass] = useState<ClassDetails | null>(null); // Track the selected class for details
@@ -41,7 +44,30 @@ const Timetable = () => {
   const slideAnim = useRef(new Animated.Value(height)).current; // Animation value for bottom sheet
   const [storedName, setStoredName] = useState<string | null>(null);
   const [storedUsername, setStoredUsername] = useState<string | null>(null);
+  const [timetableData, setTimetableData] = useState<{ day: string; classes: ClassDetails[] }[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchTimetableData = async () => {
+      try {
+        const data = await SecureStore.getItemAsync('timetable');
+        if (data) {
+          const parsedData = JSON.parse(data); // Parse the stringified data
+          setTimetableData(parsedData); // Set the parsed data to state
+        } else {
+          setError('No timetable data found.'); // Handle case where data is not available
+        }
+      } catch (err) {
+        setError('Failed to fetch timetable data.'); // Handle errors
+        console.error(err);
+      } finally {
+        setIsLoading(false); // Set loading to false after fetching
+      }
+    };
+
+    fetchTimetableData();
+  }, []);
 
   useEffect(() => {
     const fetchName = async () => {
@@ -52,7 +78,8 @@ const Timetable = () => {
     };
     fetchName();
   }, []);
-  
+
+
   useEffect(() => {
     const fetchUsername = async () => {
       const username = await SecureStore.getItemAsync("username");
@@ -62,58 +89,8 @@ const Timetable = () => {
     };
     fetchUsername();
   }, []);
-  
-  const timetableData: { day: string; classes: ClassDetails[] }[] = [
-    {
-      day: 'Monday',
-      classes: [
-        { name: 'BCSE401L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-        { name: 'BHUM110E', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-        { name: 'BCSE209L', startTime: '10:45', endTime: '11:35', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-      ],
-    },
-    {
-      day: 'Tuesday',
-      classes: [
-        { name: 'BCSE401L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-        { name: 'BHUM110E', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-      ],
-    },
-    {
-      day: 'Wednesday',
-      classes: [
-        { name: 'BCSE206L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '100%' },
-        { name: 'BCSE309L', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BCSE401L', startTime: '10:45', endTime: '11:35', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-      ],
-    },
-    {
-      day: 'Thursday',
-      classes: [
-        { name: 'BHUM110E', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-        { name: 'BCSE209L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BCSE401L', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '95%' },
-      ],
-    },
-    {
-      day: 'Friday',
-      classes: [
-        { name: 'BCSE206L', startTime: '08:00', endTime: '08:50', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '100%' },
-        { name: 'BCSE309L', startTime: '08:55', endTime: '09:45', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '85%' },
-        { name: 'BHUM110E', startTime: '09:50', endTime: '10:40', faculty: 'FACULTY NAME', venue: 'VENUE', attendance: '90%' },
-      ],
-    },
-    {
-      day: 'Saturday',
-      classes: [],
-    },
-    {
-      day: 'Sunday',
-      classes: [],
-    }
-  ];
 
-  const days = ['M', 'T', 'W', 'T', 'F','S','S']; // Shortened day names for the tab bar
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']; // Shortened day names for the tab bar
 
   // Handle day selection from the tab bar
   const handleDaySelect = (index: number) => {
@@ -143,21 +120,29 @@ const Timetable = () => {
   };
 
   const renderDay = ({ item }: { item: { day: string; classes: ClassDetails[] } }) => (
-    <View style={styles.dayContainer}>
+    <ScrollView style={styles.dayContainer}>
       {item.classes.map((cls, index) => (
         <TouchableOpacity key={index} onPress={() => handleClassPress(cls)}>
           <Card style={styles.classCard}>
             <Card.Content style={styles.cardContent}>
-              <View style={styles.timeContainer}>
-                <Text style={styles.time}>{cls.startTime}</Text>
-                <Text style={styles.time}>{cls.endTime}</Text>
+              <View style={styles.timeBackground}>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.time}>{cls.start_time}</Text>
+                  <Text style={styles.time}>{cls.end_time}</Text>
+                </View>
               </View>
-              <Text style={styles.classText}>{cls.name}</Text>
+              <View style={styles.subject}>
+                <Text style={styles.classText}>{cls.title}</Text>
+                <Text style={styles.venueText}>{cls.venue}</Text>
+              </View>
+              <View style={styles.attendancePie}>
+                <AttendancePieChart attendance={cls.attendance} radius={44}/>
+              </View>
             </Card.Content>
           </Card>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 
   return (
@@ -174,7 +159,7 @@ const Timetable = () => {
             {/* <Text style={styles.attendance}>Attendance</Text> */}
           </Card.Content>
         </Card>
-        </View>
+      </View>
       <View style={styles.tabBar}>
         {days.map((day, index) => (
           <TouchableOpacity
@@ -216,11 +201,14 @@ const Timetable = () => {
             >
               <Card mode='contained' style={styles.modalCard}>
                 <Card.Content>
-                  <Text style={styles.modalTitle}>{selectedClass?.name}</Text>
-                  <Text style={styles.modalText}>Time: {selectedClass?.startTime} - {selectedClass?.endTime}</Text>
+                  <Text style={styles.modalTitle}>{selectedClass?.title}</Text>
+                  <Text style={styles.modalText}>{selectedClass?.code}</Text>
+                  <Text/>
                   <Text style={styles.modalText}>Faculty: {selectedClass?.faculty}</Text>
                   <Text style={styles.modalText}>Venue: {selectedClass?.venue}</Text>
-                  <Text style={styles.modalText}>Attendance: {selectedClass?.attendance}</Text>
+                  <View style={styles.slot}>
+                    <Text style={styles.modalText}>{selectedClass?.slot}</Text>
+                  </View>
                 </Card.Content>
               </Card>
             </Animated.View>
@@ -234,14 +222,16 @@ const Timetable = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#332f36",
+    //backgroundColor: "#3d3742"
   },
   cont: {
     flexDirection: 'row',
     paddingTop: 50,
   },
   nameContainer: {
-    width: 0.6*width,
-    justifyContent: 'center', 
+    width: 0.6 * width,
+    justifyContent: 'center',
     textAlign: 'left'
   },
   name: {
@@ -249,44 +239,46 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 30,
     fontWeight: 'bold',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_600SemiBold',
   },
   reg: {
     padding: 20,
     paddingTop: 5,
     color: '#fff',
     fontSize: 20,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_500Medium',
   },
   attendanceCard: {
-    width:0.33*width,
+    width: 0.33 * width,
     alignSelf: 'center',
-    backgroundColor: '#615c70',
+    backgroundColor: '#5b5768',
     marginBottom: 12,
     borderRadius: 20,
     elevation: 2,
     height: 100, // Increased height for class cards
     justifyContent: 'center', // Center content vertically
-    marginHorizontal: 10
+    marginHorizontal: 10,
   },
   attendanceContent: {
     alignItems: 'center', // Center items vertically
     justifyContent: 'space-between', // Space between time and subject name
-    paddingHorizontal: 16, // Add horizontal padding
+    paddingHorizontal: 15, // Add horizontal padding
   },
   attendance: {
-    fontSize: 10,
-    color: '#ddd', 
+    fontSize: 9,
+    color: '#ddd',
+    fontFamily: 'Inter_400Regular',
   },
   attendancePerc: {
-    fontSize: 40,
+    fontSize: 38,
     color: '#fff',
-
+    fontWeight: 'bold',
+    fontFamily: 'Inter_700Bold',
   },
   tabBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 15,
+    paddingVertical: 10,
     padding: 10,
   },
   tabButton: {
@@ -306,9 +298,10 @@ const styles = StyleSheet.create({
     color: '#fff', // White text for tabs
   },
   dayContainer: {
-    width: width+10, // Full screen width
+    width: width + 10, // Full screen width
     paddingHorizontal: 16,
-    paddingTop: 10, // Add some padding at the top
+    paddingTop: 10,
+    marginBottom: 10 
   },
   classCard: {
     marginBottom: 12,
@@ -320,8 +313,19 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: 'row', // Align time and subject name side by side
     alignItems: 'center', // Center items vertically
-    justifyContent: 'space-between', // Space between time and subject name
+    // justifyContent: 'space-between', // Space between time and subject name
     paddingHorizontal: 16, // Add horizontal padding
+  },
+  timeBackground: {
+    backgroundColor: '#5b5768', // White background for the time
+    width: 65, // Width of the white background
+    height: 80, // Full height of the card
+    justifyContent: 'center',
+    alignItems: 'center', // Center time vertically
+    borderTopLeftRadius: 20, // Match card border radius
+    borderBottomLeftRadius: 20,
+    marginTop: -16,
+    marginLeft: -16,
   },
   timeContainer: {
     alignItems: 'flex-start',
@@ -329,11 +333,40 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 16, // Slightly smaller font size for time
     color: '#ddd', // Light gray text for time
+    marginTop: 1,
+    marginBottom: 1,
+    fontFamily: 'Inter_400Regular'
+  },
+  subject: {
+    textAlign: 'left',
+    marginLeft: 16,
+    flex: 1,
+    flexShrink: 1, // Allow shrinking to fit within the card
+    flexWrap: 'wrap',
+    marginTop: -25
   },
   classText: {
-    fontSize: 20,
-    fontWeight: 'bold', // Make class name bold
-    color: '#fff', // White text for class names
+    fontSize: 16,
+    color: '#fff',
+    alignSelf: 'flex-start', // Prevent stretching
+    flexWrap: 'wrap', // Allow text wrapping
+  },
+  venueText: {
+    fontSize: 13,
+    color: '#fff',
+    alignSelf: 'flex-start', // Prevent stretching
+    flexWrap: 'wrap',
+    marginTop: 5
+  },
+  attendancePie:{
+    width: 65, // Width of the white background
+    height: 80, // Full height of the card
+    justifyContent: 'center',
+    alignItems: 'center', // Center time vertically
+    borderTopRightRadius: 20, // Match card border radius
+    borderBottomRightRadius: 20,
+    marginTop: -16,
+    
   },
   modalOverlay: {
     flex: 1,
@@ -342,26 +375,40 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     width: '100%',
-    backgroundColor: '#333', // Dark background for bottom sheet
+    backgroundColor: '#5b5768', // Dark background for bottom sheet
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
   },
   modalCard: {
-    backgroundColor: '#333', // Dark background for modal
+    backgroundColor: '#5b5768', // Dark background for modal
     borderRadius: 10,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: 'bold',
-    marginBottom: 16,
+    marginBottom: 3,
     color: '#fff', // White text for modal title
   },
   modalText: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#fff', // White text for modal content
+    textAlign: 'left',
+    color: '#fff',
   },
+  slot: {
+    padding: 1,
+    paddingBottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 30,
+    width: 50,
+    backgroundColor: ' rgb(66, 63, 74)',
+    borderWidth: 1,
+    borderRadius: 5,
+    borderColor: '#fff',
+    borderStyle: 'solid'
+  }
 });
 
 export default Timetable;

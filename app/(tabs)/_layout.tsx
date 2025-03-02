@@ -11,9 +11,17 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "white",  // Color of the active tab icon & label
+        tabBarInactiveTintColor: "gray",  // Color of the inactive tab icon & label
+        tabBarStyle: { backgroundColor: "#222" }, // Tab bar background color
+        headerShown: false, // Hide header if needed
+      }}
+    >
       <Tabs.Screen
         name="index"
+
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
