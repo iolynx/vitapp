@@ -1,27 +1,21 @@
-import { ScrollView, FlatList, StyleSheet } from "react-native";
-import { Headline, Text, Button, Surface, Appbar } from "react-native-paper";
-import { useTheme } from "react-native-paper";
-import * as SecureStore from 'expo-secure-store';
-import { useEffect, useState } from "react";
-import CourseItem from "@/components/CourseItem";
-
-// const courses = [
-//   { id: '1', name: 'Mathematics' },
-//   { id: '2', name: 'Physics' },
-//   { id: '3', name: 'Computer Science' },
-//   { id: '4', name: 'History' },
-// ];
-
+import React, { useEffect, useState } from "react";
+import { FlatList, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Card, Text, useTheme } from "react-native-paper";
+import * as SecureStore from "expo-secure-store";
+import { useNavigation } from "@react-navigation/native";
+import { Circle, Svg } from "react-native-svg";
+import { CoursesScreenNavigationProp } from "../../types/types";
 
 interface Course {
   code: string;
   title: string;
-  type: "theory" | "lab"; // Restricting to known values
+  type: "theory" | "lab";
   credits: number;
   slots: string[];
   venue: string;
   faculty: string;
   nbr: string;
+  attendance?: number;
 }
 
 interface Attendance {
@@ -32,77 +26,149 @@ interface Attendance {
   total: number;
 }
 
-type CourseList = Course[]; // Type alias for an array of courses
 export default function CoursesPage() {
   const theme = useTheme();
+  // const navigation = useNavigation();
+  const navigation = useNavigation<CoursesScreenNavigationProp>();
   const [courses, setCourses] = useState<Course[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
 
   useEffect(() => {
     async function loadCourses() {
-      const fetchedCourses = await SecureStore.getItemAsync('courses');
-      const fetchedAttendance = await SecureStore.getItemAsync('attendance');
+      const fetchedCourses = await SecureStore.getItemAsync("courses");
+      const fetchedAttendance = await SecureStore.getItemAsync("attendance");
 
       if (fetchedCourses) {
-        console.log('fetched courses');
         setCourses(JSON.parse(fetchedCourses));
       }
       if (fetchedAttendance) {
-        console.log('fetched attendance')
         setAttendance(JSON.parse(fetchedAttendance));
       }
-      console.log('done');
-      console.log(courses);
     }
     loadCourses();
-  }, [])
+  }, []);
 
-
-  function updateCourses() {
-    console.log(courses.length);
-    console.log(attendance.length);
+  useEffect(() => {
     if (courses.length > 0 && attendance.length > 0) {
-      console.log('gay')
-      const updatedCourses = courses.map(course => {
-        console.log(course.slots[0]);
-        const matchingAttendance = attendance.find(a => a.slot.startsWith(course.slots[0]));
+      const updatedCourses = courses.map((course) => {
+        const matchingAttendance = attendance.find((a) =>
+          a.slot.startsWith(course.slots[0])
+        );
         return {
           ...course,
-          'attendance': matchingAttendance.percentage
+          attendance: matchingAttendance?.percentage || 0,
         };
       });
-
       setCourses(updatedCourses);
-      console.log('Updated courses with matching attendance:', updatedCourses);
     }
-  };
+  }, [courses, attendance]);
 
+  const renderCourseItem = ({ item }: { item: Course }) => (
+    <TouchableOpacity
+      onPress={() =>
+        navigation.navigate("CourseDetails", { course: item })
+      }
+    >
+      <Card style={styles.courseCard}>
+        <Card.Content style={styles.cardContent}>
+          <View style={styles.courseInfo}>
+            <Text style={styles.courseTitle}>{item.title}</Text>
+            <Text style={styles.courseCode}>{item.code}</Text>
+          </View>
+          <View style={styles.attendanceContainer}>
+            <Svg width={60} height={60}>
+              <Circle
+                cx={30}
+                cy={30}
+                r={25}
+                stroke={theme.colors.primary}
+                strokeWidth={5}
+                fill="transparent"
+              />
+              <Circle
+                cx={30}
+                cy={30}
+                r={25}
+                stroke={theme.colors.primary}
+                strokeWidth={5}
+                fill="transparent"
+                strokeDasharray={Math.PI * 50}
+                strokeDashoffset={
+                  Math.PI * 50 * (1 - (item.attendance || 0) / 100)
+                }
+                transform="rotate(-90, 30, 30)"
+              />
+            </Svg>
+            <Text style={styles.attendanceText}>
+              {item.attendance}%
+            </Text>
+          </View>
+        </Card.Content>
+      </Card>
+    </TouchableOpacity>
+  );
 
   return (
-    <FlatList
-      data={courses}
-      keyExtractor={(item) => item.code}
-      renderItem={({ item }) =>
-        <CourseItem
-          item={item}
-        />
-      }
-    />
-  )
+    <View style={styles.container}>
+      <Text variant="headlineMedium" style={styles.header}>
+        Courses
+      </Text>
+      <FlatList
+        data={courses}
+        keyExtractor={(item) => item.code}
+        renderItem={renderCourseItem}
+        contentContainerStyle={styles.listContainer}
+      />
+    </View>
+  );
 }
+
 const styles = StyleSheet.create({
-  top: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0
-  },
   container: {
     flex: 1,
+    padding: 16,
+    backgroundColor: "#f5f5f5",
   },
-  contentContainer: {
-    padding: 20,
-    justifyContent: "center",
+  header: {
+    marginBottom: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  listContainer: {
+    paddingBottom: 16,
+  },
+  courseCard: {
+    marginBottom: 12,
+    borderRadius: 12,
+    elevation: 3,
+    backgroundColor: "#fff",
+  },
+  cardContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    padding: 16,
+  },
+  courseInfo: {
+    flex: 1,
+  },
+  courseTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  courseCode: {
+    fontSize: 14,
+    color: "#666",
+  },
+  attendanceContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attendanceText: {
+    position: "absolute",
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#333",
   },
 });

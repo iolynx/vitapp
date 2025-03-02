@@ -3,11 +3,14 @@
   "compilerOptions": {
     "module": "esnext",
     "strict": true,
+    "jsx": "react-native",
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"],
+      "react-native-svg": ["node_modules/react-native-svg"]
+    },
+    "typeRoots": ["./node_modules/@types"],
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",
