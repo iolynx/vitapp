@@ -13,10 +13,10 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "white",  // Color of the active tab icon & label
-        tabBarInactiveTintColor: "gray",  // Color of the inactive tab icon & label
-        tabBarStyle: { backgroundColor: "#222" }, // Tab bar background color
-        headerShown: false, // Hide header if needed
+        tabBarActiveTintColor: "white",
+        tabBarInactiveTintColor: "gray",
+        tabBarStyle: { backgroundColor: "#222" },
+        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -33,7 +33,7 @@ export default function TabLayout() {
         name="courses"
         options={{
           title: 'Courses',
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'school' : 'school-outline'} color={color} size={24} />
           ),

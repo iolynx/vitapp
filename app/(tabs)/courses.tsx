@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, StyleSheet, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, TouchableOpacity, View, Modal, TouchableWithoutFeedback } from "react-native";
 import { Card, Text, useTheme } from "react-native-paper";
 import * as SecureStore from "expo-secure-store";
-import { useNavigation } from "@react-navigation/native";
-import { Circle, Svg } from "react-native-svg";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { CoursesScreenNavigationProp } from "../../types/types";
+import AttendancePieChart from "../../components/AttendancePieChart";
 
 interface Course {
   code: string;
@@ -28,10 +28,10 @@ interface Attendance {
 
 export default function CoursesPage() {
   const theme = useTheme();
-  // const navigation = useNavigation();
-  const navigation = useNavigation<CoursesScreenNavigationProp>();
   const [courses, setCourses] = useState<Course[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     async function loadCourses() {
@@ -59,15 +59,18 @@ export default function CoursesPage() {
           attendance: matchingAttendance?.percentage || 0,
         };
       });
-      setCourses(updatedCourses);
+      if (JSON.stringify(updatedCourses) !== JSON.stringify(courses)) {
+        setCourses(updatedCourses);
+      }
     }
   }, [courses, attendance]);
 
   const renderCourseItem = ({ item }: { item: Course }) => (
     <TouchableOpacity
-      onPress={() =>
-        navigation.navigate("CourseDetails", { course: item })
-      }
+      onPress={() => {
+        setSelectedCourse(item);
+        setModalVisible(true);
+      }}
     >
       <Card style={styles.courseCard}>
         <Card.Content style={styles.cardContent}>
@@ -76,32 +79,7 @@ export default function CoursesPage() {
             <Text style={styles.courseCode}>{item.code}</Text>
           </View>
           <View style={styles.attendanceContainer}>
-            <Svg width={60} height={60}>
-              <Circle
-                cx={30}
-                cy={30}
-                r={25}
-                stroke={theme.colors.primary}
-                strokeWidth={5}
-                fill="transparent"
-              />
-              <Circle
-                cx={30}
-                cy={30}
-                r={25}
-                stroke={theme.colors.primary}
-                strokeWidth={5}
-                fill="transparent"
-                strokeDasharray={Math.PI * 50}
-                strokeDashoffset={
-                  Math.PI * 50 * (1 - (item.attendance || 0) / 100)
-                }
-                transform="rotate(-90, 30, 30)"
-              />
-            </Svg>
-            <Text style={styles.attendanceText}>
-              {item.attendance}%
-            </Text>
+            <AttendancePieChart attendance={item.attendance || 0} radius={42} />
           </View>
         </Card.Content>
       </Card>
@@ -119,6 +97,47 @@ export default function CoursesPage() {
         renderItem={renderCourseItem}
         contentContainerStyle={styles.listContainer}
       />
+
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedCourse && (
+                <>
+                  <Text style={styles.modalTitle}>{selectedCourse.title}</Text>
+                  <Text style={styles.modalText}>Code: {selectedCourse.code}</Text>
+                  <Text style={styles.modalText}>Faculty: {selectedCourse.faculty}</Text>
+                  <Text style={styles.modalText}>Venue: {selectedCourse.venue}</Text>
+                  <Text style={styles.modalText}>Attendance: {selectedCourse.attendance}%</Text>
+                  <Text style={styles.sectionTitle}>Marks</Text>
+                  {selectedCourse.type === "theory" ? (
+                    <>
+                      <Text style={styles.modalText}>DA1: -</Text>
+                      <Text style={styles.modalText}>DA2: -</Text>
+                      <Text style={styles.modalText}>DA3: -</Text>
+                      <Text style={styles.modalText}>CAT-1: -</Text>
+                      <Text style={styles.modalText}>CAT-2: -</Text>
+                      <Text style={styles.modalText}>FAT: -</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.modalText}>PAT: -</Text>
+                      <Text style={styles.modalText}>MAT: -</Text>
+                      <Text style={styles.modalText}>FAT: -</Text>
+                      <Text style={styles.modalText}>Lab Assignments: -</Text>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -127,21 +146,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#332f36",
   },
   header: {
     marginBottom: 16,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
+    fontSize: 24,
+    paddingTop: 40
   },
   listContainer: {
     paddingBottom: 16,
   },
   courseCard: {
     marginBottom: 12,
-    borderRadius: 12,
-    elevation: 3,
-    backgroundColor: "#fff",
+    borderRadius: 20,
+    elevation: 2,
+    backgroundColor: "#5b5768",
   },
   cardContent: {
     flexDirection: "row",
@@ -155,11 +176,11 @@ const styles = StyleSheet.create({
   courseTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
   },
   courseCode: {
     fontSize: 14,
-    color: "#666",
+    color: "#ddd",
   },
   attendanceContainer: {
     alignItems: "center",
@@ -169,6 +190,36 @@ const styles = StyleSheet.create({
     position: "absolute",
     fontSize: 14,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    width: "80%",
+    backgroundColor: "#5b5768",
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#fff",
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: "#fff",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginTop: 16,
+    marginBottom: 8,
+    color: "#fff",
   },
 });
