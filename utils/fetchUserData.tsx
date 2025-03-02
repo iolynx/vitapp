@@ -1,11 +1,12 @@
 import { WebView } from "react-native-webview";
 import React, { useRef, useEffect, useState } from "react";
-import * as SecureStore from "expo-secure-store";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import CaptchaDialog from "@/components/CaptchaDialog";
 import SelectSemesterModal from "@/components/SelectSemesterModal";
 import scripts from "./scripts";
 import LoginErrorModal from "@/components/LoginErrorModal";
+
+import * as SecureStore from "expo-secure-store";
 
 
 interface FetchUserDataProps {
@@ -271,8 +272,6 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					const courses = data.courses;
 				}
 
-				console.log(SecureStore.getItem('courses'));
-
 				console.log('checking timetables now..');
 				injectScript('getTimetable', selectedSemester);
 				break;
@@ -291,7 +290,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				// 	}
 				// }
 				//
-				console.log(timetable);
+
+				saveInfo('timetable', JSON.stringify(timetable));
 
 				injectScript('getAttendance', selectedSemester);
 				break;
