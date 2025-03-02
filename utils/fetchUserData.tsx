@@ -8,6 +8,16 @@ import LoginErrorModal from "@/components/LoginErrorModal";
 
 import * as SecureStore from "expo-secure-store";
 
+interface Course {
+	code: string;
+	title: string;
+	type: "theory" | "lab"; // Restricting to known values
+	credits: number;
+	slots: string[];
+	venue: string;
+	faculty: string;
+	nbr: string;
+}
 
 interface FetchUserDataProps {
 	username: string,
@@ -35,6 +45,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 	const [errorModalVisible, setErrorModalVisible] = useState(false);
 	const [errorModalMessage, setErrorModalMessage] = useState('');
+	const [courses, setCourses] = useState<Course[]>([]);
+
 
 	function saveInfo(key: string, value: string) {
 		SecureStore.setItem(key, value);
@@ -269,7 +281,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				// save to the securestore key value store
 				if (data.courses) {
 					saveInfo('courses', JSON.stringify(data.courses));
-					const courses = data.courses;
+					setCourses(data.courses);
 				}
 
 				console.log('checking timetables now..');
@@ -277,19 +289,22 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				break;
 
 			case 'GOT_TIMETABLE':
-				console.log(data.timetable);
-				const timetable = data.timetable;
+				//console.log('Timetable: ', data.timetable);
 
-				// for (const day of timetable) {
-				// 	for (const classObj of day.classes) {
-				// 		const course = courses.find(c => c.slots.includes(classObj.slot));
-				// 		if (course) {
-				// 			classObj.title = course.title;
-				// 			classObj.faculty = course.faculty;
-				// 		}
-				// 	}
-				// }
-				//
+				var timetable = data.timetable;
+
+				for (const day of timetable) {
+					for (const classObj of day.classes) {
+						const course = courses.find(c => c.code === classObj.code);
+						if (course) {
+							classObj.title = course.title;
+							classObj.faculty = course.faculty;
+						}
+					}
+				}
+
+				console.log(timetable);
+
 
 				saveInfo('timetable', JSON.stringify(timetable));
 

@@ -40,7 +40,6 @@ export default function AboutScreen() {
   }
 
   const handleDebug = () => {
-
     console.log(SecureStore.getItem('timetable'));
   }
 
