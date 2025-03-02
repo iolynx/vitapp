@@ -39,6 +39,11 @@ export default function AboutScreen() {
     router.replace("(auth)/login");
   }
 
+  const handleDebug = () => {
+
+    console.log(SecureStore.getItem('timetable'));
+  }
+
   return (
     <View style={styles.container}>
       <Text variant="displayLarge"> This is the about page </Text>
@@ -53,6 +58,10 @@ export default function AboutScreen() {
 
       <Button mode="contained" onPress={navigateToLogin} style={styles.button}>
         Login
+      </Button>
+
+      <Button mode="contained" onPress={handleDebug} style={styles.button}>
+        Debug
       </Button>
 
     </View>

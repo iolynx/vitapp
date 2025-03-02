@@ -277,9 +277,10 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				break;
 
 			case 'GOT_TIMETABLE':
-				console.log('Lab: \n', data.lab);
-				console.log('Theory: \n', data.theory);
-				// TODO: save timetable
+				console.log(data.timetable);
+
+				// not using secure store to store data larger than 2048 bytes
+				saveInfo('timetable', JSON.stringify(data.timetable));
 
 				injectScript('getAttendance', selectedSemester);
 				break;

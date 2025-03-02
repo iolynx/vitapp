@@ -432,7 +432,7 @@ const scripts = {
 	})();`,
 
 	getTimetable: (selectedSemester: string) => `
-	(function() {
+    (function() {
 		var csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
 		var authorizedID = document.getElementById('authorizedIDX')?.value || '';
 		var selectedSemester = '${selectedSemester}';
@@ -440,82 +440,106 @@ const scripts = {
 
 		var data = \`_csrf=\${csrfToken}&semesterSubId=\${selectedSemester}&authorizedID=\${authorizedID}&x=\${timestamp}\`;
 
-		var response = {
-			lab: [],
-			theory: [],
-			status: 'GOT_TIMETABLE'
-		};
+        var response = {
+            timetable: [],
+            start_time: {lab: [], theory: []},
+            end_time: {lab: [], theory: []},
+            status: 'GOT_TIMETABLE'
+        };
 
-		fetch("processViewTimeTable", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/x-www-form-urlencoded"
-				},
-				body: data
-			})
-			.then(res => res.text())
-			.then(res => {
-				var doc = new DOMParser().parseFromString(res, "text/html");
-				var spans = doc.getElementById("getStudentDetails").getElementsByTagName("span");
-				if (spans[0].innerText.toLowerCase().includes("no record(s) found")) {
-					return;
-				}
-				var cells = doc.getElementById("timeTableStyle").getElementsByTagName("td");
-				var key, type;
-				for (var i = 0, j = 0; i < cells.length; ++i) {
-					var content = cells[i].innerText.toUpperCase();
-					if (content.includes("THEORY")) {
-						type = "theory";
+        fetch("processViewTimeTable", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: data
+            })
+            .then(res => res.text())
+            .then(res => {
+                var doc = new DOMParser().parseFromString(res, "text/html");
+                var spans = doc.getElementById("getStudentDetails").getElementsByTagName("span");
+                if (spans[0].innerText.toLowerCase().includes("no record(s) found")) {
+                    return;
+                }
+                var cells = doc.getElementById("timeTableStyle").getElementsByTagName("td");
+                var key, type;
+                for (var i = 0, j = 0; i < cells.length; ++i) {
+                    var content = cells[i].innerText.toUpperCase();
+                    if (content.includes("THEORY")) {
+                        type = "theory";
+                        j = 0;
+                        continue;
+                    } else if (content.includes("LAB")) {
+                        type = "lab";
+                        j = 0;
+                        continue;
+                    } else if (content.includes("START")) {
+                        key = "start";
+                        continue;
+                    } else if (content.includes("END")) {
+                        key = "end";
+                        continue;
+                    } else if (content.includes("SUN")) {
+                        key = "SUN";
+                        response.timetable.push({day: 'SUN', classes: []});
+                        j = 0
+                        continue;
+                    } else if (content.includes("MON")) {
+                        key = "MON";
+                        response.timetable.push({day: 'MON', classes: []});
 						j = 0;
-						continue;
-					} else if (content.includes("LAB")) {
-						type = "lab";
+                        continue;
+                    } else if (content.includes("TUE")) {
+                        key = "TUE";
+                        response.timetable.push({day: 'TUE', classes: []});
 						j = 0;
-						continue;
-					} else if (content.includes("START")) {
-						key = "start";
-						continue;
-					} else if (content.includes("END")) {
-						key = "end";
-						continue;
-					} else if (content.includes("SUN")) {
-						key = "sunday";
-						continue;
-					} else if (content.includes("MON")) {
-						key = "monday";
-						continue;
-					} else if (content.includes("TUE")) {
-						key = "tuesday";
-						continue;
-					} else if (content.includes("WED")) {
-						key = "wednesday";
-						continue;
-					} else if (content.includes("THU")) {
-						key = "thursday";
-						continue;
-					} else if (content.includes("FRI")) {
-						key = "friday";
-						continue;
-					} else if (content.includes("SAT")) {
-						key = "saturday";
-						continue;
-					} else if (content.includes("LUNCH")) {
-						continue;
-					}
-					if (key == "start") {
-						response[type].push({ start_time: content.trim() });
-					} else if (key == "end") {
-						response[type][j++].end_time = content.trim();
-					} else if (cells[i].bgColor == "#CCFF33") {
-						response[type][j++][key] = content.split("-")[0].trim();
-					} else {
-						response[type][j++][key] = null;
-					}
-				}
-			})
+                        continue;
+                    } else if (content.includes("WED")) {
+                        key = "WED";
+                        response.timetable.push({day: 'WED', classes: []});
+						j = 0;
+                        continue;
+                    } else if (content.includes("THU")) {
+                        key = "THU";
+                        response.timetable.push({day: 'THU', classes: []});
+						j = 0;
+                        continue;
+                    } else if (content.includes("FRI")) {
+                        key = "FRI";
+                        response.timetable.push({day: 'FRI', classes: []});
+						j = 0;
+                        continue;
+                    } else if (content.includes("SAT")) {
+                        key = "SAT";
+                        response.timetable.push({day: 'SAT', classes: []});
+						j = 0;
+                        continue;
+                    } else if (content.includes("LUNCH")) {
+                        continue;
+                    }
+
+                    if (key == "start") {
+                        response.start_time[type].push(content.trim());
+                    } else if (key == "end") {
+                        response.end_time[type].push(content.trim());
+                    } else if (cells[i].bgColor == "#CCFF33") {
+                        csplit = content.split('-');
+                        var period = {};
+                        period.slot = csplit[0];
+                        period.code = csplit[1];
+                        period.venue = csplit[3] + '-' + csplit[4];
+                        period.type = type;
+                        period.start_time = response.start_time[type][j];
+						period.end_time = response.end_time[type][j];
+                        response.timetable.find(entry => entry.day === key).classes.push(period);
+                    }   
+                    j++;
+                }
+				window.ReactNativeWebView.postMessage(JSON.stringify(response));
+            })
 			.catch(err => console.error(err))
 			.finally(() => window.ReactNativeWebView.postMessage(JSON.stringify(response, null, 2)));
-		})();
+        })(); 
 	`,
 	getAttendance: (selectedSemester: String) => `
 	(function() {
