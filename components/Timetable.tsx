@@ -40,6 +40,8 @@ const Timetable = () => {
   const flatListRef = useRef<FlatList>(null); // Reference to the FlatList for scrolling
   const slideAnim = useRef(new Animated.Value(height)).current; // Animation value for bottom sheet
   const [storedName, setStoredName] = useState<string | null>(null);
+  const [storedUsername, setStoredUsername] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchName = async () => {
@@ -49,6 +51,16 @@ const Timetable = () => {
       }
     };
     fetchName();
+  }, []);
+  
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const username = await SecureStore.getItemAsync("username");
+      if (username) {
+        setStoredUsername(username); // Convert to Title Case
+      }
+    };
+    fetchUsername();
   }, []);
   
   const timetableData: { day: string; classes: ClassDetails[] }[] = [
@@ -151,7 +163,16 @@ const Timetable = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.name}>{storedName}</Text>
-
+      <Text style={styles.reg}>{storedUsername}</Text>
+      <Card style={styles.attendanceCard}>
+        <Card.Content style={styles.attendanceContent}>
+          <View style={styles.timeContainer}>
+            <Text style={styles.attendance}>Overall Attendance</Text>
+            {/* <Text style={styles.attendance}>Attendance</Text> */}
+          </View>
+          <Text style={styles.attendancePerc}>93%</Text>
+        </Card.Content>
+      </Card>
       <View style={styles.tabBar}>
         {days.map((day, index) => (
           <TouchableOpacity
@@ -213,12 +234,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    padding: 20,
+    paddingLeft: 20,
     paddingTop: 50,
     color: '#fff',
     fontSize: 30,
     fontWeight: 'bold',
     fontFamily: 'Helvetica',
+  },
+  reg: {
+    padding: 20,
+    paddingTop: 5,
+    color: '#fff',
+    fontSize: 20,
+    fontFamily: 'Helvetica',
+  },
+  attendanceCard: {
+    width: width-20,
+    alignSelf: 'center',
+    backgroundColor: '#615c70',
+    marginBottom: 12,
+    borderRadius: 20,
+    elevation: 2,
+    height: 100, // Increased height for class cards
+    justifyContent: 'center', // Center content vertically
+    paddingHorizontal: 10
+  },
+  attendanceContent: {
+    flexDirection: 'row', // Align time and subject name side by side
+    alignItems: 'center', // Center items vertically
+    justifyContent: 'space-between', // Space between time and subject name
+    paddingHorizontal: 16, // Add horizontal padding
+  },
+  attendance: {
+    fontSize: 20,
+    color: '#ddd', 
+  },
+  attendancePerc: {
+    fontSize: 40,
+    color: '#fff',
+
   },
   tabBar: {
     flexDirection: 'row',
