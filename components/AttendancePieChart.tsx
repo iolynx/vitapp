@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Circle, Svg } from "react-native-svg";
-import {StyleSheet, Text} from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 interface AttendanceProps {
     attendance: number;
     radius: number;
 }
-const AttendancePieChart: React.FC<AttendanceProps> = ({attendance, radius}) => {
+const AttendancePieChart: React.FC<AttendanceProps> = ({ attendance, radius }) => {
     return (
         <Svg width={60} height={60} viewBox="0 0 100 100">
             {/* Background Circle */}
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         textAlign: "center",
         marginTop: 18,
-        fontSize: 16,
+        fontSize: 15,
         color: '#fff',
         fontWeight: "bold",
     }
