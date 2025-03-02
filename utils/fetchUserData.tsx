@@ -270,6 +270,8 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					saveInfo('courses', JSON.stringify(data.courses));
 				}
 
+				console.log(SecureStore.getItem('courses'));
+
 				console.log('checking timetables now..');
 				injectScript('getTimetable', selectedSemester);
 				break;
@@ -284,6 +286,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			case 'GOT_ATTENDANCE':
 				console.log('Attendance: ', data);
+				saveInfo('attendance', JSON.stringify(data.attendance));
 				setLoading(false);
 				onDataFetched('LOGGED_IN');
 				break;
