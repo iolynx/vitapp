@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Card, Button } from 'react-native-paper';
 import * as SecureStore from "expo-secure-store";
+import AttendancePieChart from './AttendancePieChart';
 
 const { width, height } = Dimensions.get('window'); // Get screen width and height
 
@@ -25,7 +26,7 @@ type ClassDetails = {
   end_time: string;   // End time of the class
   title: string;
   faculty: string;
-  attendance: string;
+  attendance: number;
 };
 
 const toTitleCase = (str: string): string => {
@@ -134,8 +135,8 @@ const Timetable = () => {
                 <Text style={styles.classText}>{cls.title}</Text>
                 <Text style={styles.venueText}>{cls.venue}</Text>
               </View>
-              <View>
-
+              <View style={styles.attendancePie}>
+                <AttendancePieChart attendance={cls.attendance} radius={44}/>
               </View>
             </Card.Content>
           </Card>
@@ -356,7 +357,17 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', // Prevent stretching
     flexWrap: 'wrap',
     marginTop: 5
-   },
+  },
+  attendancePie:{
+    width: 65, // Width of the white background
+    height: 80, // Full height of the card
+    justifyContent: 'center',
+    alignItems: 'center', // Center time vertically
+    borderTopRightRadius: 20, // Match card border radius
+    borderBottomRightRadius: 20,
+    marginTop: -16,
+    
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background
@@ -382,7 +393,8 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#fff', // White text for modal content
+    textAlign: 'left',
+    color: '#fff',
   },
   slot: {
     padding: 1,
