@@ -215,6 +215,8 @@ const Timetable = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#332f36",
+    //backgroundColor: "#3d3742"
   },
   cont: {
     flexDirection: 'row',
@@ -230,14 +232,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 30,
     fontWeight: 'bold',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_600SemiBold',
   },
   reg: {
     padding: 20,
     paddingTop: 5,
     color: '#fff',
     fontSize: 20,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_500Medium',
   },
   attendanceCard: {
     width: 0.33 * width,
@@ -256,15 +258,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, // Add horizontal padding
   },
   attendance: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#ddd',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_400Regular',
   },
   attendancePerc: {
-    fontSize: 40,
+    fontSize: 38,
     color: '#fff',
     fontWeight: 'bold',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Inter_700Bold',
   },
   tabBar: {
     flexDirection: 'row',
@@ -323,13 +325,16 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 16, // Slightly smaller font size for time
     color: '#ddd', // Light gray text for time
+    marginTop: 1,
+    marginBottom: 1,
+    fontFamily: 'Inter_400Regular'
   },
   subject: {
     textAlign: 'left',
     marginLeft: 16,
     flex: 1,
     flexShrink: 1, // Allow shrinking to fit within the card
-    flexWrap: 'wrap', 
+    flexWrap: 'wrap',
     marginTop: -25
   },
   classText: {
@@ -343,7 +348,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     alignSelf: 'flex-start', // Prevent stretching
     flexWrap: 'wrap',
-    marginTop:5
+    marginTop: 5
   },
   modalOverlay: {
     flex: 1,
