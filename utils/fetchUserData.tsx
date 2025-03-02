@@ -268,6 +268,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				// save to the securestore key value store
 				if (data.courses) {
 					saveInfo('courses', JSON.stringify(data.courses));
+					const courses = data.courses;
 				}
 
 				console.log(SecureStore.getItem('courses'));
@@ -278,9 +279,19 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			case 'GOT_TIMETABLE':
 				console.log(data.timetable);
+				const timetable = data.timetable;
 
-				// not using secure store to store data larger than 2048 bytes
-				saveInfo('timetable', JSON.stringify(data.timetable));
+				// for (const day of timetable) {
+				// 	for (const classObj of day.classes) {
+				// 		const course = courses.find(c => c.slots.includes(classObj.slot));
+				// 		if (course) {
+				// 			classObj.title = course.title;
+				// 			classObj.faculty = course.faculty;
+				// 		}
+				// 	}
+				// }
+				//
+				console.log(timetable);
 
 				injectScript('getAttendance', selectedSemester);
 				break;

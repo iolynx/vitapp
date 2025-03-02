@@ -535,7 +535,6 @@ const scripts = {
                     }   
                     j++;
                 }
-				window.ReactNativeWebView.postMessage(JSON.stringify(response));
             })
 			.catch(err => console.error(err))
 			.finally(() => window.ReactNativeWebView.postMessage(JSON.stringify(response, null, 2)));
