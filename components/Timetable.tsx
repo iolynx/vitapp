@@ -75,6 +75,7 @@ const Timetable = () => {
     fetchName();
   }, []);
 
+
   useEffect(() => {
     const fetchUsername = async () => {
       const username = await SecureStore.getItemAsync("username");
@@ -151,6 +152,7 @@ const Timetable = () => {
           <Card.Content style={styles.attendanceContent}>
             <Text style={styles.attendancePerc}>93%</Text>
             <Text style={styles.attendance}>Overall Attendance</Text>
+            {/* <Text style={styles.attendance}>Attendance</Text> */}
           </Card.Content>
         </Card>
       </View>
@@ -221,7 +223,7 @@ const styles = StyleSheet.create({
   nameContainer: {
     width: 0.6 * width,
     justifyContent: 'center',
-    textAlign: 'left',
+    textAlign: 'left'
   },
   name: {
     paddingLeft: 20,
@@ -287,7 +289,7 @@ const styles = StyleSheet.create({
     color: '#fff', // White text for tabs
   },
   dayContainer: {
-    width: width+10, // Full screen width
+    width: width + 10, // Full screen width
     paddingHorizontal: 16,
     paddingTop: 10, // Add some padding at the top
   },

@@ -556,7 +556,7 @@ const scripts = {
 				var doc = new DOMParser().parseFromString(res, 'text/html');
 				var table = doc.getElementById('getStudentDetails');
 				var headings = table.getElementsByTagName('th');
-				var courseTypeIndex, slotIndex, attendedIndex, totalIndex, percentageIndex;
+				var courseTypeIndex, slotIndex, attendedIndex, totalIndex, percentageIndex, codeIndex;
 				for (var i = 0; i < headings.length; ++i) {
 					var heading = headings[i].innerText.toLowerCase();
 					if (heading.includes('course') && heading.includes('type')) {
@@ -569,17 +569,21 @@ const scripts = {
 						totalIndex = i;
 					} else if (heading.includes('percentage')) {
 						percentageIndex = i;
+					} else if (heading.includes('code')) {
+						codeIndex = i;
 					}
 				}
 				var cells = table.getElementsByTagName('td');
-				while (courseTypeIndex < cells.length && slotIndex < cells.length && attendedIndex < cells.length && totalIndex < cells.length && percentageIndex < cells.length) {
+				while (codeIndex < cells.length && courseTypeIndex < cells.length && slotIndex < cells.length && attendedIndex < cells.length && totalIndex < cells.length && percentageIndex < cells.length) {
 					var attendanceObject = {};
+					attendanceObject.course_code = cells[codeIndex].innerText.trim();
 					attendanceObject.course_type = cells[courseTypeIndex].innerText.trim();
 					attendanceObject.slot = cells[slotIndex].innerText.trim().split('+')[0].trim();
 					attendanceObject.attended = parseInt(cells[attendedIndex].innerText.trim()) || 0;
 					attendanceObject.total = parseInt(cells[totalIndex].innerText.trim()) || 0;
 					attendanceObject.percentage = parseInt(cells[percentageIndex].innerText.trim()) || 0;
 					response.attendance.push(attendanceObject);
+					codeIndex += headings.length;
 					courseTypeIndex += headings.length;
 					slotIndex += headings.length;
 					attendedIndex += headings.length;
