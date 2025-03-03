@@ -233,6 +233,11 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'LOGIN_VALIDATED':
 				console.log('Validating Login...');
 				if (data.error_message) {
+					if (data.error_message === 'VTOP Login') {
+						console.log('vtop login, reloading');
+						injectScript('detectPage');
+						break;
+					}
 					console.log('Error Validating Login: ', data.error_message);
 					setErrorModalMessage('Error: ' + data.error_message);
 					setErrorModalVisible(true);

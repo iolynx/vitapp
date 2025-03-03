@@ -38,7 +38,7 @@ const toTitleCase = (str: string): string => {
 };
 
 const Timetable = () => {
-  const [selectedDay, setSelectedDay] = useState(0); // Track the selected day
+  const [selectedDay, setSelectedDay] = useState(0); // TODO: get the current day and map it to [0->6]
   const [selectedClass, setSelectedClass] = useState<ClassDetails | null>(null); // Track the selected class for details
   const flatListRef = useRef<FlatList>(null); // Reference to the FlatList for scrolling
   const slideAnim = useRef(new Animated.Value(height)).current; // Animation value for bottom sheet
@@ -136,7 +136,7 @@ const Timetable = () => {
                 <Text style={styles.venueText}>{cls.venue}</Text>
               </View>
               <View style={styles.attendancePie}>
-                <AttendancePieChart attendance={cls.attendance} radius={44}/>
+                <AttendancePieChart attendance={cls.attendance} radius={44} />
               </View>
             </Card.Content>
           </Card>
@@ -181,9 +181,16 @@ const Timetable = () => {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={(event) => {
           const index = Math.floor(event.nativeEvent.contentOffset.x / width);
-          setSelectedDay(index); // Update selected day when scrolling
+          setSelectedDay(index);
+        }}
+        onScrollBeginDrag={() => {
+        }}
+        onScroll={(event) => {
+          const index = Math.floor(event.nativeEvent.contentOffset.x / width);
+          setSelectedDay(index);
         }}
       />
 
@@ -203,7 +210,7 @@ const Timetable = () => {
                 <Card.Content>
                   <Text style={styles.modalTitle}>{selectedClass?.title}</Text>
                   <Text style={styles.modalText}>{selectedClass?.code}</Text>
-                  <Text/>
+                  <Text />
                   <Text style={styles.modalText}>Faculty: {selectedClass?.faculty}</Text>
                   <Text style={styles.modalText}>Venue: {selectedClass?.venue}</Text>
                   <View style={styles.slot}>
@@ -267,7 +274,7 @@ const styles = StyleSheet.create({
   attendance: {
     fontSize: 9,
     color: '#ddd',
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'Inter_300Light',
   },
   attendancePerc: {
     fontSize: 38,
@@ -301,7 +308,7 @@ const styles = StyleSheet.create({
     width: width + 10, // Full screen width
     paddingHorizontal: 16,
     paddingTop: 10,
-    marginBottom: 10 
+    marginBottom: 10
   },
   classCard: {
     marginBottom: 12,
@@ -358,7 +365,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: 5
   },
-  attendancePie:{
+  attendancePie: {
     width: 65, // Width of the white background
     height: 80, // Full height of the card
     justifyContent: 'center',
@@ -366,7 +373,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20, // Match card border radius
     borderBottomRightRadius: 20,
     marginTop: -16,
-    
+
   },
   modalOverlay: {
     flex: 1,

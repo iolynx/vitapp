@@ -30,7 +30,7 @@ const scripts = {
 					var pageText = document.documentElement.innerText || "";
 
 					if (!pageText.trim()) {
-						window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'ERROR', message: 'No page text found' }));
+						window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', error_message: 'No page text found' }));
 						return;
 					}
 
@@ -42,13 +42,48 @@ const scripts = {
 
 					window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', message: pageText }));
 				} catch (e) {
-					window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'ERROR', message: e.message }));
+					window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'LOGIN_VALIDATED', error_message: 'ERROR: ' + e.message }));
 				}
 			})();
 		}, 2000); // Wait for 2 seconds
 	`,
 
 	validateLogin: `
+	window.onload = async function () {
+		const errorMessages = [
+			"Invalid Captcha",
+			"VTOP Login",
+			"Invalid LoginId/Password",
+			"Invalid Username/Password",
+			"Invalid Username",
+			"Maximum no. of Attempts reached",
+			"Maximum number of Attempts reached",
+			"Account Locked"
+		];
+
+		var pageText = document.documentElement.innerText || "";
+
+		// Normalize spaces to handle inconsistent spacing
+		var cleanedText = pageText.replace(/\s+/g, ' ').trim();
+
+		for (var i = 0; i < errorMessages.length; i++) {
+			if (cleanedText.includes(errorMessages[i])) {
+				window.ReactNativeWebView.postMessage(JSON.stringify({ 
+					status: 'LOGIN_VALIDATED', 
+					error_message: errorMessages[i] 
+				}));
+				return;
+			}
+		}
+
+		window.ReactNativeWebView.postMessage(JSON.stringify({ 
+			status: 'LOGIN_VALIDATED', 
+			message: 'ok', 
+		}));
+	};
+	`,
+
+	validateLoginWorks: `
 		(function() {
 			const errorMessages = [
 				"Invalid Captcha",

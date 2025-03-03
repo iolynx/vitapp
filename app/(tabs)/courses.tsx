@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
 //       return (
 //         <View style={styles.courseContainer}>
 //           <Text style={styles.commonTitle}>{item.title}</Text>
-      
+
 //           <TouchableOpacity
 //             onPress={() => {
 //               setSelectedCourse(item);
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
 //                   <View style={styles.leftHalf}>
 //                     <Text style={styles.courseCode}>{item.code}</Text>
 //                   </View>
-      
+
 //                   <View style={styles.rightHalf}>
 //                     <View style={styles.attendanceContainer}>
 //                       <AttendancePieChart attendance={item.attendance || 0} radius={42} />
