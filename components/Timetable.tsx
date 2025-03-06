@@ -119,6 +119,11 @@ const Timetable = () => {
     });
   };
 
+  const handleCourseNavigation = (courseTitle: String) => {
+    console.log('navigated to, ', courseTitle);
+    // TODO: add course title navigation
+  }
+
   const renderDay = ({ item }: { item: { day: string; classes: ClassDetails[] } }) => (
     <ScrollView style={styles.dayContainer}>
       {item.classes.map((cls, index) => (
@@ -216,6 +221,9 @@ const Timetable = () => {
                   <View style={styles.slot}>
                     <Text style={styles.modalText}>{selectedClass?.slot}</Text>
                   </View>
+                  <Button mode="outlined" style={styles.courseButton} onPress={() => handleCourseNavigation(selectedClass?.title)}>
+                    Go To Course Page
+                  </Button>
                 </Card.Content>
               </Card>
             </Animated.View>
@@ -415,6 +423,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderColor: '#fff',
     borderStyle: 'solid'
+  },
+  courseButton: {
+    maxWidth: 180,
+    maxHeight: 45,
+    padding: 0,
+    alignSelf: 'center',
+    fontFamily: 'Inter_300Light'
   }
 });
 
