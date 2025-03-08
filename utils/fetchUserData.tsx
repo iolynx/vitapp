@@ -99,7 +99,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 		`);
 		console.log('Form Submitted');
 		setTimeout(() => {
-			console.log('Validating login...');
+			console.log('(c) Validating login...');
 			injectScript('validateLogin');
 		}, 2500);
 	};
@@ -231,7 +231,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				break;
 
 			case 'LOGIN_VALIDATED':
-				console.log('Validating Login...');
+				console.log('_Validating Login...');
 				if (data.error_message) {
 					if (data.error_message === 'VTOP Login') {
 						console.log('vtop login, reloading');
@@ -332,13 +332,15 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				}
 
 				console.log('Final TT: \n', timetable);
-
 				saveInfo('timetable', JSON.stringify(timetable));
 
-				setLoading(false);
-				onDataFetched('LOGGED_IN');
+				injectScript('getMarks', selectedSemester);
 				break;
 
+			case 'GOT_MARKS':
+				console.log('got marks');
+				setLoading(false);
+				onDataFetched('LOGGED_IN');
 
 			case 'FINISHED':
 				setLoading(false);

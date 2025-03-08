@@ -48,7 +48,7 @@ const scripts = {
 		}, 2000); // Wait for 2 seconds
 	`,
 
-	validateLogin: `
+	validateLogin_SLOW: `
 	window.onload = async function () {
 		const errorMessages = [
 			"Invalid Captcha",
@@ -83,7 +83,7 @@ const scripts = {
 	};
 	`,
 
-	validateLoginWorks: `
+	validateLogin: `
 		(function() {
 			const errorMessages = [
 				"Invalid Captcha",
@@ -624,6 +624,100 @@ const scripts = {
 					attendedIndex += headings.length;
 					totalIndex += headings.length;
 					percentageIndex += headings.length;
+				}
+			}
+		});
+		window.ReactNativeWebView.postMessage(JSON.stringify(response));
+	})();
+	`,
+	getMarks: (selectedSemester: String) => `
+	(function() {
+		var data = '_csrf=' + $('input[name="_csrf"]').val() + '&semesterSubId=' + '${selectedSemester}' + '&authorizedID=' + $('#authorizedIDX').val();
+		var response = {
+			marks: {},
+			status: 'GOT_MARKS'
+		};
+
+		$.ajax({
+			type: "POST",
+			url: "examinations/doStudentMarkView",
+			data: data,
+			async: false,
+			success: function(res) {
+				if (res.toLowerCase().includes("no data found")) {
+					return;
+				}
+				var doc = new DOMParser().parseFromString(res, "text/html");
+				var table = doc.getElementById("fixedTableContainer");
+				var rows = table.getElementsByTagName("tr");
+				var headings = rows[0].getElementsByTagName("td");
+				var courseTypeIndex, slotIndex, codeIndex;
+				var code;
+				for (var i = 0; i < headings.length; ++i) {
+					var heading = headings[i].innerText.toLowerCase();
+					if (heading.includes("course") && heading.includes("type")) {
+						courseTypeIndex = i;
+					} else if (heading.includes("slot")) {
+						slotIndex = i;
+					} else if (heading.includes("course") && heading.includes("code")){
+						codeIndex = i;
+					}
+				}
+
+				for (var i = 1; i < rows.length; ++i) {
+					var rawCourseType = rows[i].getElementsByTagName("td")[courseTypeIndex].innerText.trim().toLowerCase();
+					var courseType = (rawCourseType.includes("lab")) ? "lab" : ((rawCourseType.includes("project")) ? "project" : "theory");
+					code = rows[i].getElementsByTagName("td")[codeIndex].innerText.trim();
+					var slot = rows[i++].getElementsByTagName("td")[slotIndex].innerText.split("+")[0].trim();
+					var innerTable = rows[i].getElementsByTagName("table")[0];
+					var innerRows = innerTable.getElementsByTagName("tr");
+					var innerHeadings = innerRows[0].getElementsByTagName("td");
+					var titleIndex, scoreIndex, maxScoreIndex, weightageIndex, maxWeightageIndex, averageIndex, statusIndex;
+					for (var j = 0; j < innerHeadings.length; ++j) {
+						var innerHeading = innerHeadings[j].innerText.toLowerCase();
+						if (innerHeading.includes("title")) {
+							titleIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("max")) {
+							maxScoreIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("%")) {
+							maxWeightageIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("status")) {
+							statusIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("scored")) {
+							scoreIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("weightage") && innerHeading.includes("mark")) {
+							weightageIndex = j + innerHeadings.length;
+						} else if (innerHeading.includes("average")) {
+							averageIndex = j + innerHeadings.length;
+						}
+					}
+					var innerCells = innerTable.getElementsByTagName("td");
+					while (titleIndex < innerCells.length && scoreIndex < innerCells.length && maxScoreIndex < innerCells.length && weightageIndex < innerCells.length && maxWeightageIndex < innerCells.length && averageIndex < innerCells.length && statusIndex < innerCells.length) {
+						var mark = {};
+						mark.slot = slot;
+						mark.course_code = code;
+						mark.course_type = courseType;
+						mark.title = innerCells[titleIndex].innerText.trim();
+						mark.score = parseFloat(innerCells[scoreIndex].innerText) || 0;
+						mark.max_score = parseFloat(innerCells[maxScoreIndex].innerText) || null;
+						mark.weightage = parseFloat(innerCells[weightageIndex].innerText) || 0;
+						mark.max_weightage = parseFloat(innerCells[maxWeightageIndex].innerText) || null;
+						mark.average = parseFloat(innerCells[averageIndex].innerText) || null;
+						mark.status = innerCells[statusIndex].innerText.trim();
+						// response.marks.push(mark);
+						if (!response.marks[code]) {
+							response.marks[code] = [];
+						}
+						response.marks[code].push(mark);
+						titleIndex += innerHeadings.length;
+						scoreIndex += innerHeadings.length;
+						maxScoreIndex += innerHeadings.length;
+						weightageIndex += innerHeadings.length;
+						maxWeightageIndex += innerHeadings.length;
+						averageIndex += innerHeadings.length;
+						statusIndex += innerHeadings.length;
+					}
+					i += innerRows.length;
 				}
 			}
 		});
