@@ -33,18 +33,25 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [marks, setMarks] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     async function loadCourses() {
       const fetchedCourses = await SecureStore.getItemAsync("courses");
       const fetchedAttendance = await SecureStore.getItemAsync("attendance");
+      const fetchedMarks = await SecureStore.getItemAsync("marks");
+
+      console.log('marks are: ', marks["BCSE206L"])
 
       if (fetchedCourses) {
         setCourses(JSON.parse(fetchedCourses));
       }
       if (fetchedAttendance) {
         setAttendance(JSON.parse(fetchedAttendance));
+      }
+      if (fetchedMarks) {
+        setMarks(JSON.parse(fetchedMarks));
       }
     }
     loadCourses();

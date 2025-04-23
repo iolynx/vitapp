@@ -197,8 +197,12 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					//  getting the captcha challenge
 					setTimeout(() => {
 						injectScript('getCaptcha');
-					}, 700);
+					}, 5000);
 					console.log('bye');
+					// the shit below wasnt there with good wifi
+					setTimeout(() => {
+						injectScript('detectPage');
+					}, 3000) // was 800
 					setGettingCaptcha(true);
 				} else if (data.captcha_type == 'GRECAPTCHA') {
 					console.log('Captcha Type: greCaptcha');
@@ -224,7 +228,7 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 				setTimeout(() => {
 					injectScript('validateLogin');
-				}, 3000);
+				}, 5000);
 
 				// setShowReCaptchaDialog(true);
 				// console.log(showReCaptchaDialog);
@@ -235,7 +239,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 				if (data.error_message) {
 					if (data.error_message === 'VTOP Login') {
 						console.log('vtop login, reloading');
-						injectScript('detectPage');
+						setTimeout(() => {
+							injectScript('detectPage');
+						}, 1000) // was 800
 						break;
 					}
 					console.log('Error Validating Login: ', data.error_message);
@@ -243,7 +249,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 					setErrorModalVisible(true);
 				} else {
 					console.log('Login Validated');
-					injectScript('fetchSemesters');
+					setTimeout(() => {
+						injectScript('fetchSemesters');
+					}, 5000) // was 0
 				}
 				break;
 
@@ -253,7 +261,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 				setUrl('https://vtopcc.vit.ac.in/vtop/content');
 				console.log('Fetching Semesters...');
-				injectScript('fetchSemesters');
+				setTimeout(() => {
+					injectScript('fetchSemesters');
+				}, 3000)
 				break;
 
 			case 'RECAPTCHA_SHOWN':
@@ -262,7 +272,9 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 			case 'FETCHED_SEMESTERS':
 				setSemesters(data.semesters);
 				console.log('Semesters are: ', semesters);
-				setSemesterModalVisible(true);
+				setTimeout(() => {
+					setSemesterModalVisible(true);
+				}, 3000)
 				// this transfers control to a 
 				// semester modal that upon submisison
 				// returns control to handleSemesterSelect()
@@ -339,8 +351,11 @@ const FetchUserData: React.FC<FetchUserDataProps> = ({ username, password, onDat
 
 			case 'GOT_MARKS':
 				console.log('got marks');
+				print(data.marks)
+				saveInfo('marks', JSON.stringify(data.marks))
 				setLoading(false);
 				onDataFetched('LOGGED_IN');
+				break;
 
 			case 'FINISHED':
 				setLoading(false);
