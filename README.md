@@ -1,5 +1,5 @@
 # VITalize
-A helper app for students of VIT-Chennai <br/><br/>
+A helper app for the students of VIT-Chennai <br/><br/>
 
 <img height="40%" width="40%" src="https://github.com/user-attachments/assets/e65ed010-d712-40e5-86b2-1a7e813229f2" />
 &nbsp;
